@@ -1,0 +1,577 @@
+<!-- Copyright (c) 2024, 2025, 2026, Oracle and/or its affiliates.
+     Licensed under the Universal Permissive License v1.0 as shown at
+     https://oss.oracle.com/licenses/upl/ -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ExpressLane | OCM - Settings</title>
+    <link href="{{ url_for('static', filename='fontawesome/css/all.min.css') }}" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Oracle Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            background: #f5f3ef;
+            color: #161513;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        /* Main Content */
+        .main-content {
+            padding: 24px;
+            min-height: calc(100vh - 48px);
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* Breadcrumb */
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 24px;
+            font-size: 14px;
+            color: #6b6969;
+        }
+
+        .breadcrumb a {
+            color: #0572ce;
+            text-decoration: none;
+        }
+
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+
+        /* Page Header */
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 32px;
+        }
+
+        .page-title {
+            font-size: 24px;
+            font-weight: 400;
+            color: #161513;
+        }
+
+        /* Settings Form */
+        .settings-container {
+            background: #fff;
+            border-radius: 8px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            max-width: 900px;
+        }
+
+        .settings-section {
+            margin-bottom: 32px;
+        }
+
+        .settings-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 500;
+            color: #161513;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #e9e8e6;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            font-weight: 500;
+            color: #161513;
+            margin-bottom: 6px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #d1cec9;
+            border-radius: 4px;
+            font-size: 14px;
+            background: #fff;
+            transition: border-color 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #0572ce;
+            box-shadow: 0 0 0 2px rgba(5,114,206,0.1);
+        }
+
+        .form-input[type="password"] {
+            font-family: monospace;
+        }
+
+        .form-help {
+            font-size: 12px;
+            color: #6b6969;
+            margin-top: 4px;
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #0572ce;
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            background: #045a9e;
+        }
+
+        .btn-secondary {
+            background: #fff;
+            color: #161513;
+            border: 1px solid #d1cec9;
+        }
+
+        .btn-secondary:hover {
+            background: #f7f8fa;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 32px;
+            padding-top: 24px;
+            border-top: 1px solid #e9e8e6;
+        }
+
+        /* Alert Messages */
+        .alert {
+            padding: 12px 16px;
+            border-radius: 4px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .alert-success {
+            background: #e8f5e8;
+            color: #2d5f2d;
+            border: 1px solid #a8d4a8;
+        }
+
+        .alert-error {
+            background: #fce8e8;
+            color: #8b2635;
+            border: 1px solid #d4a8a8;
+        }
+
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .two-column {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .info-box {
+            background: #e6f0ff;
+            border: 1px solid #b3d9ff;
+            border-radius: 4px;
+            padding: 12px 16px;
+            margin-bottom: 24px;
+            display: flex;
+            gap: 12px;
+        }
+
+        .info-box i {
+            color: #0572ce;
+            margin-top: 2px;
+        }
+
+        .info-box-content {
+            flex: 1;
+        }
+
+        .info-box-title {
+            font-weight: 600;
+            color: #161513;
+            margin-bottom: 4px;
+        }
+
+        .info-box-text {
+            font-size: 13px;
+            color: #6b6969;
+            line-height: 1.6;
+        }
+
+        /* Retry button next to dropdowns */
+        .select-with-retry {
+            display: flex;
+            gap: 8px;
+            align-items: stretch;
+        }
+
+        .select-with-retry select {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .retry-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 38px;
+            border: 1px solid #d1cec9;
+            border-radius: 4px;
+            background: #fff;
+            color: #6b6969;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .retry-btn:hover {
+            background: #f7f8fa;
+            color: #0572ce;
+            border-color: #0572ce;
+        }
+    </style>
+</head>
+<body>
+    {% include '_navbar.html' %}
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="page-header">
+            <h1 class="page-title">OCM Migration Settings</h1>
+        </div>
+
+        {% if message %}
+        <div class="alert alert-{{ 'success' if success else 'error' }}">
+            <i class="fas fa-{{ 'check-circle' if success else 'exclamation-triangle' }}"></i>
+            {{ message }}
+        </div>
+        {% endif %}
+
+        <div class="info-box">
+            <i class="fas fa-info-circle"></i>
+            <div class="info-box-content">
+                <div class="info-box-title">About OCM Configuration</div>
+                <div class="info-box-text">
+                    Oracle Cloud Migrations (OCM) uses Cloud Bridge to discover and migrate VMs from VMware and AWS environments to OCI.
+                    Configure your Cloud Bridge asset source and target OCI environment below. These settings will be used for all OCM migrations.
+                </div>
+            </div>
+        </div>
+
+        <div class="settings-container">
+            <form method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <!-- OCM (Oracle Cloud Migrations) Configuration Section -->
+                <div class="settings-section">
+                    <h2 class="section-title">
+                        <i class="fas fa-cloud" style="margin-right: 8px; color: #f80000;"></i>
+                        Oracle Cloud Migrations (OCM) Configuration
+                    </h2>
+                    <div class="two-column">
+                        <div class="form-group">
+                            <label for="ocm_region" class="form-label">OCM Region</label>
+                            <select id="ocm_region" name="ocm_region" class="form-input" onchange="onRegionChange()" style="padding: 10px 36px 10px 12px; appearance: none; background-image: url('data:image/svg+xml,%3csvg xmlns=%27http://www.w3.org/2000/svg%27 fill=%27none%27 viewBox=%270 0 20 20%27%3e%3cpath stroke=%27%236b6969%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27 stroke-width=%271.5%27 d=%27m6 8 4 4 4-4%27/%3e%3c/svg%3e'); background-position: right 12px center; background-repeat: no-repeat; background-size: 16px;">
+                                <!-- Americas -->
+                                <option value="us-ashburn-1">US East (Ashburn)</option>
+                                <option value="us-chicago-1">US Midwest (Chicago)</option>
+                                <option value="us-phoenix-1">US West (Phoenix)</option>
+                                <option value="us-sanjose-1">US West (San Jose)</option>
+                                <option value="ca-montreal-1">Canada Southeast (Montreal)</option>
+                                <option value="ca-toronto-1">Canada Southeast (Toronto)</option>
+                                <option value="mx-monterrey-1">Mexico Northeast (Monterrey)</option>
+                                <option value="mx-queretaro-1">Mexico Central (Queretaro)</option>
+                                <option value="sa-saopaulo-1">Brazil East (Sao Paulo)</option>
+                                <option value="sa-vinhedo-1">Brazil Southeast (Vinhedo)</option>
+                                <option value="sa-santiago-1">Chile Central (Santiago)</option>
+                                <!-- Europe -->
+                                <option value="eu-amsterdam-1">Netherlands Northwest (Amsterdam)</option>
+                                <option value="eu-frankfurt-1">Germany Central (Frankfurt)</option>
+                                <option value="eu-jovanovac-1">Serbia Central (Jovanovac)</option>
+                                <option value="eu-madrid-1">Spain Central (Madrid)</option>
+                                <option value="eu-marseille-1">France South (Marseille)</option>
+                                <option value="eu-milan-1">Italy Northwest (Milan)</option>
+                                <option value="eu-paris-1">France Central (Paris)</option>
+                                <option value="eu-stockholm-1">Sweden Central (Stockholm)</option>
+                                <option value="eu-zurich-1">Switzerland North (Zurich)</option>
+                                <option value="uk-cardiff-1">UK West (Cardiff)</option>
+                                <option value="uk-london-1">UK South (London)</option>
+                                <!-- Middle East & Africa -->
+                                <option value="af-johannesburg-1">South Africa Central (Johannesburg)</option>
+                                <option value="il-jerusalem-1">Israel Central (Jerusalem)</option>
+                                <option value="me-abudhabi-1">UAE Central (Abu Dhabi)</option>
+                                <option value="me-dubai-1">UAE East (Dubai)</option>
+                                <option value="me-jeddah-1">Saudi Arabia West (Jeddah)</option>
+                                <!-- Asia Pacific -->
+                                <option value="ap-chuncheon-1">South Korea North (Chuncheon)</option>
+                                <option value="ap-hyderabad-1">India South (Hyderabad)</option>
+                                <option value="ap-melbourne-1">Australia Southeast (Melbourne)</option>
+                                <option value="ap-mumbai-1">India West (Mumbai)</option>
+                                <option value="ap-osaka-1">Japan Central (Osaka)</option>
+                                <option value="ap-seoul-1">South Korea Central (Seoul)</option>
+                                <option value="ap-singapore-1">Singapore (Singapore)</option>
+                                <option value="ap-sydney-1">Australia East (Sydney)</option>
+                                <option value="ap-tokyo-1">Japan East (Tokyo)</option>
+                            </select>
+                            <div class="form-help">OCI region for OCM service and migrated resources</div>
+                        </div>
+                        <div class="form-group">
+                            <label for="ocm_target_compartment_ocid" class="form-label">Source Compartment</label>
+                            <select id="ocm_target_compartment_ocid" name="ocm_target_compartment_ocid" class="form-input" onchange="onCompartmentChange()" style="padding: 10px 36px 10px 12px; appearance: none; background-image: url('data:image/svg+xml,%3csvg xmlns=%27http://www.w3.org/2000/svg%27 fill=%27none%27 viewBox=%270 0 20 20%27%3e%3cpath stroke=%27%236b6969%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27 stroke-width=%271.5%27 d=%27m6 8 4 4 4-4%27/%3e%3c/svg%3e'); background-position: right 12px center; background-repeat: no-repeat; background-size: 16px;">
+                                <option value="">-- Select Compartment --</option>
+                            </select>
+                            <div class="form-help">Compartment containing Cloud Bridge asset sources and migration projects</div>
+                        </div>
+                        <div class="form-group">
+                            <label for="ocm_asset_source_ocid" class="form-label">Cloud Bridge Asset Source</label>
+                            <div class="select-with-retry">
+                                <select id="ocm_asset_source_ocid" name="ocm_asset_source_ocid" class="form-input" style="padding: 10px 36px 10px 12px; appearance: none; background-image: url('data:image/svg+xml,%3csvg xmlns=%27http://www.w3.org/2000/svg%27 fill=%27none%27 viewBox=%270 0 20 20%27%3e%3cpath stroke=%27%236b6969%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27 stroke-width=%271.5%27 d=%27m6 8 4 4 4-4%27/%3e%3c/svg%3e'); background-position: right 12px center; background-repeat: no-repeat; background-size: 16px;">
+                                    <option value="">-- Select Asset Source --</option>
+                                </select>
+                                <button type="button" class="retry-btn" onclick="loadAssetSources()" title="Retry loading asset sources">
+                                    <i class="fas fa-sync-alt"></i>
+                                </button>
+                            </div>
+                            <div class="form-help">Cloud Bridge asset source for VM discovery (VMware vCenter or AWS connector)</div>
+                        </div>
+                        <div class="form-group">
+                            <label for="ocm_replication_bucket_ocid" class="form-label">Replication Bucket</label>
+                            <div class="select-with-retry">
+                                <select id="ocm_replication_bucket_ocid" name="ocm_replication_bucket_ocid" class="form-input" style="padding: 10px 36px 10px 12px; appearance: none; background-image: url('data:image/svg+xml,%3csvg xmlns=%27http://www.w3.org/2000/svg%27 fill=%27none%27 viewBox=%270 0 20 20%27%3e%3cpath stroke=%27%236b6969%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27 stroke-width=%271.5%27 d=%27m6 8 4 4 4-4%27/%3e%3c/svg%3e'); background-position: right 12px center; background-repeat: no-repeat; background-size: 16px;">
+                                    <option value="">-- Select Bucket --</option>
+                                </select>
+                                <button type="button" class="retry-btn" onclick="loadBuckets()" title="Retry loading buckets">
+                                    <i class="fas fa-sync-alt"></i>
+                                </button>
+                            </div>
+                            <div class="form-help">Object Storage bucket for VM disk replication during migration</div>
+                        </div>
+                        <div class="form-group">
+                            <label for="ocm_poll_interval_seconds" class="form-label">Polling Interval (seconds)</label>
+                            <input type="number" id="ocm_poll_interval_seconds" name="ocm_poll_interval_seconds" class="form-input"
+                                   value="{{ config.get('OCM_POLL_INTERVAL_SECONDS', 30) }}" min="10" max="300">
+                            <div class="form-help">How often to check migration step completion status (recommended: 30-60 seconds)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i>
+                        Save Settings
+                    </button>
+                    <a href="/ocm" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i>
+                        Back to Migrations
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Current saved values
+        const currentRegion = "{{ config.get('OCM_REGION', 'us-ashburn-1') }}";
+        const currentCompartment = "{{ config.get('OCM_TARGET_COMPARTMENT_OCID', '') }}";
+        const currentAssetSource = "{{ config.get('OCM_ASSET_SOURCE_OCID', '') }}";
+        const currentBucket = "{{ config.get('OCM_REPLICATION_BUCKET_OCID', '') }}";
+
+        // Event handlers for cascading dropdowns
+        function onRegionChange() {
+            // When region changes, refresh all region-dependent dropdowns
+            const compartmentId = document.getElementById('ocm_target_compartment_ocid').value;
+            if (compartmentId) {
+                loadBuckets();
+                loadAssetSources();
+            }
+        }
+
+        function onCompartmentChange() {
+            // When compartment changes, refresh dependent dropdowns
+            loadBuckets();
+            loadAssetSources();
+        }
+
+        // Load compartments
+        async function loadCompartments() {
+            const compartmentSelect = document.getElementById('ocm_target_compartment_ocid');
+
+            compartmentSelect.innerHTML = '<option value="">Loading...</option>';
+            compartmentSelect.disabled = true;
+
+            try {
+                const response = await fetchWithRetry('/api/ocm/compartments');
+                const data = await response.json();
+
+                compartmentSelect.innerHTML = '<option value="">-- Select Compartment --</option>';
+
+                if (data.error) {
+                    alert('Error loading compartments: ' + data.error);
+                } else if (data.compartments && data.compartments.length > 0) {
+                    data.compartments.forEach(comp => {
+                        const option = document.createElement('option');
+                        option.value = comp.id;
+                        option.textContent = comp.name;
+                        compartmentSelect.appendChild(option);
+                    });
+
+                    // Try to select the current compartment
+                    if (currentCompartment) {
+                        compartmentSelect.value = currentCompartment;
+                    }
+                } else {
+                    compartmentSelect.innerHTML = '<option value="">No compartments found</option>';
+                }
+            } catch (error) {
+                compartmentSelect.innerHTML = '<option value="">Failed to load — click retry</option>';
+            } finally {
+                compartmentSelect.disabled = false;
+            }
+        }
+
+        // Load Buckets
+        async function loadBuckets() {
+            const bucketSelect = document.getElementById('ocm_replication_bucket_ocid');
+            const compartmentId = document.getElementById('ocm_target_compartment_ocid').value;
+            const region = document.getElementById('ocm_region').value;
+
+            if (!compartmentId) {
+                alert('Please select a Source Compartment first');
+                return;
+            }
+
+            bucketSelect.innerHTML = '<option value="">Loading...</option>';
+            bucketSelect.disabled = true;
+
+            try {
+                const response = await fetchWithRetry(`/api/ocm/buckets?compartment_id=${encodeURIComponent(compartmentId)}&region=${encodeURIComponent(region)}`);
+                const data = await response.json();
+
+                bucketSelect.innerHTML = '<option value="">-- Select Bucket --</option>';
+
+                if (data.error) {
+                    alert('Error loading buckets: ' + data.error);
+                } else if (data.buckets && data.buckets.length > 0) {
+                    data.buckets.forEach(bucket => {
+                        const option = document.createElement('option');
+                        option.value = bucket.name;
+                        option.textContent = bucket.name;
+                        bucketSelect.appendChild(option);
+                    });
+
+                    // Try to select the current bucket
+                    if (currentBucket) {
+                        bucketSelect.value = currentBucket;
+                    }
+                } else {
+                    bucketSelect.innerHTML = '<option value="">No buckets found</option>';
+                }
+            } catch (error) {
+                bucketSelect.innerHTML = '<option value="">Failed to load — click retry</option>';
+            } finally {
+                bucketSelect.disabled = false;
+            }
+        }
+
+        async function loadAssetSources() {
+            const assetSourceSelect = document.getElementById('ocm_asset_source_ocid');
+            const compartmentId = document.getElementById('ocm_target_compartment_ocid').value;
+            const region = document.getElementById('ocm_region').value;
+
+            if (!compartmentId) {
+                alert('Please enter a Source Compartment OCID first');
+                return;
+            }
+
+            // Show loading state
+            assetSourceSelect.innerHTML = '<option value="">Loading...</option>';
+            assetSourceSelect.disabled = true;
+
+            try {
+                const response = await fetchWithRetry(`/api/ocm/asset-sources?compartment_id=${encodeURIComponent(compartmentId)}&region=${encodeURIComponent(region)}`);
+                const data = await response.json();
+
+                // Clear and repopulate
+                assetSourceSelect.innerHTML = '<option value="">-- Select Asset Source --</option>';
+
+                if (data.error) {
+                    alert('Error loading asset sources: ' + data.error);
+                } else if (data.asset_sources && data.asset_sources.length > 0) {
+                    data.asset_sources.forEach(source => {
+                        const option = document.createElement('option');
+                        option.value = source.id;
+                        option.textContent = `${source.name} (${source.type})`;
+                        assetSourceSelect.appendChild(option);
+                    });
+
+                    // Try to select the current asset source
+                    if (currentAssetSource) {
+                        assetSourceSelect.value = currentAssetSource;
+                    }
+                } else {
+                    assetSourceSelect.innerHTML = '<option value="">No asset sources found</option>';
+                }
+            } catch (error) {
+                assetSourceSelect.innerHTML = '<option value="">Failed to load — click retry</option>';
+            } finally {
+                assetSourceSelect.disabled = false;
+            }
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Set OCM Region
+            document.getElementById('ocm_region').value = currentRegion;
+
+            // Load compartments first, then dependent dropdowns
+            await loadCompartments();
+
+            // If compartment was selected (by loadCompartments setting currentCompartment),
+            // load the dependent dropdowns immediately
+            if (document.getElementById('ocm_target_compartment_ocid').value) {
+                await Promise.all([loadBuckets(), loadAssetSources()]);
+            }
+        });
+
+    </script>
+
+    {% include '_footer.html' %}
+</body>
+</html>

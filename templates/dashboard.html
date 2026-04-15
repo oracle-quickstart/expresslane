@@ -1,0 +1,1141 @@
+{# Copyright (c) 2024, 2025, 2026, Oracle and/or its affiliates.
+   Licensed under the Universal Permissive License v1.0 as shown at
+   https://oss.oracle.com/licenses/upl/
+
+   Operational Dashboard — trimmed redesign, 2026-04-12.
+   Structure:
+     1. Header (title + subtitle + freshness + refresh)
+     2. 4 KPI cards (Running Now / Ready for Cutover / Completed / This Week)
+     3. Currently Running  (live view, one-line idle state)
+     4. Migration History   (full table, filtered by KPI card clicks + search + sort)
+   Removed from earlier drafts: Recent Issues, Migration Trend chart,
+   Status Breakdown chart, Source Breakdown chart, Recent Activity feed,
+   duplicate Start-New-Migration CTA button, Chart.js CDN.
+   Reuses base.css design tokens + status pills + empty-state styling.
+#}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard · ExpressLane</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='fontawesome/css/all.min.css') }}">
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='ExpressLaneLogo.svg') }}">
+
+    <style>
+        /* ============================================================
+           Page layout — built on base.css custom properties so dark mode
+           and shared styling Just Work when base.css evolves.
+           ============================================================ */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: "Oracle Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            background: #f5f3ef;
+            color: #161513;
+            font-size: 14px;
+            line-height: 1.5;
+            min-height: 100vh;
+        }
+
+        .main-content {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 24px 24px 72px 24px;
+        }
+
+        /* ============================================================
+           1. HEADER
+           ============================================================ */
+        .dash-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-bottom: 24px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #e9e8e6;
+        }
+        .dash-header-text h1 {
+            font-size: 24px;
+            font-weight: 700;
+            color: #161513;
+            margin: 0 0 4px 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .dash-header-text h1 .dash-header-icon {
+            color: #0572ce;
+            font-size: 22px;
+        }
+        .dash-header-text p {
+            font-size: 13px;
+            color: #6b6969;
+            margin: 0;
+            max-width: 640px;
+        }
+        .dash-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .refresh-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 16px;
+            background: #fff;
+            border: 1px solid #d1cec9;
+            border-radius: 6px;
+            color: #161513;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.15s ease, border-color 0.15s ease;
+            font-family: inherit;
+        }
+        .refresh-btn:hover { background: #f4f4f2; border-color: #b4b2ad; }
+        .refresh-btn i.fa-spin { color: #0572ce; }
+
+        .dash-btn-primary {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 20px;
+            background: #0572ce;
+            color: #fff;
+            border: 1px solid #0572ce;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: background 0.15s ease;
+        }
+        .dash-btn-primary:hover { background: #045ca8; }
+
+        /* ============================================================
+           2. KPI CARDS (4-card grid for the operational redesign)
+           ============================================================ */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 14px;
+            margin-bottom: 24px;
+        }
+        .kpi-grid.kpi-grid-5 {
+            grid-template-columns: repeat(5, 1fr);
+        }
+        /* KPI cards are <button> elements used as filter toggles for the
+           Migration History table below. Reset button defaults and add a
+           clear "selected" state so it's obvious which filter is active. */
+        .kpi-card {
+            background: #fff;
+            border: 1px solid #e9e8e6;
+            border-radius: 8px;
+            padding: 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            transition: all 0.15s ease;
+            text-align: left;
+            text-decoration: none;
+            color: inherit;
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: inherit;
+            width: 100%;
+        }
+        .kpi-card:hover {
+            border-color: #0572ce;
+            box-shadow: 0 4px 12px rgba(5, 114, 206, 0.12);
+            transform: translateY(-1px);
+        }
+        /* Selected state: filled accent border + soft background tint so
+           the active filter is unmistakable. */
+        .kpi-card[aria-pressed="true"] {
+            border-color: #0572ce;
+            background: #f0f7ff;
+            box-shadow: 0 0 0 3px rgba(5, 114, 206, 0.12);
+            transform: translateY(-1px);
+        }
+        .kpi-card[aria-pressed="true"] .kpi-sub { color: #0572ce; }
+        .kpi-card .kpi-label {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            color: #6b6969;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .kpi-card .kpi-label i { font-size: 12px; }
+        .kpi-card .kpi-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #161513;
+            line-height: 1.1;
+        }
+        .kpi-card .kpi-sub {
+            font-size: 11px;
+            color: #9ca3af;
+        }
+        /* Accent strip on the left to help colorblind users distinguish categories. */
+        .kpi-card::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            width: 3px;
+            background: transparent;
+        }
+        .kpi-card.kpi-total::before     { background: #6b6969; }
+        .kpi-card.kpi-running::before   { background: #60a5fa; }
+        .kpi-card.kpi-insync::before    { background: #a78bfa; }
+        .kpi-card.kpi-completed::before { background: #34d399; }
+        .kpi-card.kpi-failed::before    { background: #fbbf24; }
+
+        .kpi-card.kpi-total     .kpi-label i { color: #6b6969; }
+        .kpi-card.kpi-running   .kpi-label i { color: #60a5fa; }
+        .kpi-card.kpi-insync    .kpi-label i { color: #a78bfa; }
+        .kpi-card.kpi-completed .kpi-label i { color: #34d399; }
+        .kpi-card.kpi-failed    .kpi-label i { color: #d97706; }
+
+        /* ============================================================
+           SECTION BASE — used by Live Monitoring, Charts, Activity, Recent
+           ============================================================ */
+        .section {
+            background: #fff;
+            border: 1px solid #e9e8e6;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        .section-header {
+            padding: 14px 20px;
+            border-bottom: 1px solid #e9e8e6;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            background: #fafafa;
+        }
+        .section-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #161513;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 0;
+        }
+        .section-title i { color: #0572ce; font-size: 14px; }
+        .section-sub {
+            font-size: 11px;
+            color: #9ca3af;
+            font-weight: 500;
+        }
+        .section-body { padding: 20px; }
+
+        /* ============================================================
+           3. CURRENTLY RUNNING
+           ============================================================ */
+
+        .running-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 12px;
+        }
+        .running-card {
+            border: 1px solid #e9e8e6;
+            border-radius: 6px;
+            padding: 14px;
+            background: #fff;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .running-card .rc-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+        .running-card .rc-name {
+            font-weight: 600;
+            color: #161513;
+            font-size: 13px;
+            word-break: break-word;
+        }
+        .running-card .rc-source {
+            font-size: 10px;
+            font-weight: 600;
+            color: #6b6969;
+            padding: 2px 8px;
+            background: #f3f4f6;
+            border-radius: 10px;
+            white-space: nowrap;
+        }
+        .running-card .rc-step {
+            font-size: 12px;
+            color: #6b6969;
+        }
+        .running-card .rc-progress {
+            height: 6px;
+            background: #f3f4f6;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 2px;
+        }
+        .running-card .rc-progress-fill {
+            height: 100%;
+            background: #0572ce;
+            border-radius: 3px;
+            transition: width 0.4s ease;
+        }
+        .running-card.status-pending        .rc-progress-fill { background: #9ca3af; }
+        .running-card.status-running        .rc-progress-fill { background: #0572ce; }
+        .running-card.status-cutting-over   .rc-progress-fill { background: #9333ea; }
+        .running-card .rc-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 11px;
+            color: #9ca3af;
+        }
+        .running-card .rc-footer a {
+            color: #0572ce;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .running-card .rc-footer a:hover { text-decoration: underline; }
+        /* Whole-card clickable: the card is now an <a> tag. Remove link
+           defaults and add a hover lift so it feels interactive. */
+        a.running-card { text-decoration: none; color: inherit; }
+        a.running-card:hover {
+            border-color: #0572ce;
+            box-shadow: 0 4px 12px rgba(5, 114, 206, 0.12);
+            transform: translateY(-1px);
+        }
+        .rc-view-hint {
+            font-size: 11px;
+            color: #9ca3af;
+            font-weight: 600;
+            transition: color 0.15s ease;
+        }
+        a.running-card:hover .rc-view-hint { color: #0572ce; }
+
+        /* ---- Idle state for Currently Running ---- */
+        /* One quiet line instead of a giant hero with duplicate CTA. */
+        .running-idle {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #9ca3af;
+            font-size: 13px;
+            padding: 20px 4px;
+            font-style: italic;
+        }
+        .running-idle i {
+            color: #34d399;
+            font-size: 8px;
+            opacity: 0.6;
+        }
+
+        /* Running-card "live" pulse dot to hint at activity. */
+        .live-dot {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #10b981;
+            position: relative;
+            animation: livePulse 1.8s ease-in-out infinite;
+        }
+        @keyframes livePulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6); }
+            50%      { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .live-dot { animation: none; }
+        }
+
+        /* ============================================================
+           5. RECENTLY COMPLETED — compact table
+           ============================================================ */
+        .recent-table-wrap { overflow-x: auto; }
+        .recent-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .recent-table th {
+            text-align: left;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            color: #6b6969;
+            padding: 12px 16px;
+            background: #fafafa;
+            border-bottom: 1px solid #e9e8e6;
+            white-space: nowrap;
+        }
+        .recent-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #e9e8e6;
+            font-size: 13px;
+            vertical-align: middle;
+        }
+        .recent-table tr:last-child td { border-bottom: none; }
+        .recent-table tr:hover { background: #fafafa; }
+        .recent-table tr.mh-clickable-row:hover { background: #f0f7ff; }
+        .recent-table .mini-progress {
+            width: 80px;
+            height: 5px;
+            background: #f3f4f6;
+            border-radius: 3px;
+            overflow: hidden;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+        .recent-table .mini-progress-fill {
+            height: 100%;
+            background: #0572ce;
+            border-radius: 3px;
+        }
+        .recent-table .mini-progress-fill.status-completed { background: #0e6333; }
+        .recent-table .mini-progress-fill.status-failed    { background: #8e1f1f; }
+        .recent-table .mini-progress-fill.status-in-sync   { background: #9333ea; }
+        .recent-table .view-details {
+            color: #0572ce;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 12px;
+        }
+        .recent-table .view-details:hover { text-decoration: underline; }
+
+        .view-all-cta {
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+            border-top: 1px solid #e9e8e6;
+            background: #fafafa;
+        }
+        .view-all-cta a {
+            color: #0572ce;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .view-all-cta a:hover { text-decoration: underline; }
+
+        /* ---- Embedded Migration History table: search + sortable columns ---- */
+        .mh-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 20px;
+            border-bottom: 1px solid #e9e8e6;
+            flex-wrap: wrap;
+            background: #fff;
+        }
+        .mh-filter-label {
+            font-size: 12px;
+            color: #6b6969;
+            font-weight: 500;
+        }
+        .mh-filter-label strong { color: #0572ce; font-weight: 600; }
+        .mh-search {
+            flex: 1 1 240px;
+            min-width: 180px;
+            max-width: 340px;
+            padding: 8px 12px 8px 34px;
+            border: 1px solid #d1cec9;
+            border-radius: 6px;
+            font-size: 13px;
+            background: #fff url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 16 16' fill='%239ca3af'><path d='M11.742 10.344a6.5 6.5 0 10-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 001.415-1.414l-3.85-3.85a1 1 0 00-.115-.1zM12 6.5a5.5 5.5 0 11-11 0 5.5 5.5 0 0111 0z'/></svg>") no-repeat 12px center;
+            font-family: inherit;
+        }
+        .mh-search:focus {
+            outline: none;
+            border-color: #0572ce;
+            box-shadow: 0 0 0 3px rgba(5, 114, 206, 0.12);
+        }
+        .mh-count {
+            font-size: 12px;
+            color: #6b6969;
+            margin-left: auto;
+            white-space: nowrap;
+        }
+        /* Sortable column headers */
+        .recent-table th[data-sort] {
+            cursor: pointer;
+            user-select: none;
+        }
+        .recent-table th[data-sort]:hover { background: #f3f4f6; }
+        .recent-table th[data-sort] .sort-icon {
+            margin-left: 6px;
+            font-size: 10px;
+            opacity: 0.35;
+        }
+        .recent-table th[data-sort].sorted .sort-icon { opacity: 1; color: #0572ce; }
+        .recent-table .mini-progress {
+            width: 80px;
+            height: 5px;
+            background: #f3f4f6;
+            border-radius: 3px;
+            overflow: hidden;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+        .recent-table .mini-progress-fill {
+            height: 100%;
+            background: #0572ce;
+            border-radius: 3px;
+        }
+        .recent-table .mini-progress-fill.status-completed { background: #34d399; }
+        .recent-table .mini-progress-fill.status-failed    { background: #fbbf24; }
+        .recent-table .mini-progress-fill.status-in-sync   { background: #a78bfa; }
+        .recent-table .btn-sm-primary {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            background: #0572ce;
+            color: #fff;
+            border: 1px solid #0572ce;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            font-family: inherit;
+        }
+        .recent-table .btn-sm-primary:hover { background: #045ca8; }
+
+        /* ============================================================
+           STATUS PILL COLOR VARIANTS  (base class is in base.css)
+           ============================================================ */
+        .status-pill.status-pending      { background: #fef3c7; color: #854d0e; }
+        .status-pill.status-running      { background: #dbeafe; color: #0572ce; }
+        .status-pill.status-in-sync      { background: #f3e8ff; color: #6b21a8; }
+        .status-pill.status-cutting-over { background: #f3e8ff; color: #6b21a8; }
+        .status-pill.status-completed    { background: #d1fae5; color: #0e6333; }
+        .status-pill.status-failed       { background: #fee2e2; color: #8e1f1f; }
+        .status-pill.status-cancelled    { background: #f3f4f6; color: #6b6969; }
+
+        /* ============================================================
+           RESPONSIVE
+           ============================================================ */
+        @media (max-width: 1200px) {
+            .kpi-grid, .kpi-grid.kpi-grid-5 { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 768px) {
+            .main-content { padding: 16px 12px 56px 12px; }
+            .kpi-grid, .kpi-grid.kpi-grid-4 { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+            .kpi-card { padding: 14px; }
+            .kpi-card .kpi-value { font-size: 26px; }
+            .dash-header h1 { font-size: 20px; }
+            .running-cards { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    {% include '_navbar.html' %}
+
+    <div class="main-content">
+
+        {# ========= 1. HEADER ========= #}
+        <div class="dash-header">
+            <div class="dash-header-text">
+                <h1>
+                    <i class="fas fa-tachometer-alt dash-header-icon" aria-hidden="true"></i>
+                    OCM Migration Dashboard
+                </h1>
+                <p>Operational overview of your Oracle Cloud Migrations.</p>
+            </div>
+            <div class="dash-header-actions">
+                <span class="cache-hint" id="dashFreshness" aria-live="polite" style="display: none;">
+                    <span class="cache-dot idle" id="dashFreshnessDot"></span>
+                    <span>Updated <span id="dashFreshnessText">just now</span></span>
+                </span>
+                <button type="button" class="refresh-btn" id="dashRefreshBtn" onclick="manualRefreshDashboard()" aria-label="Refresh dashboard">
+                    <i class="fas fa-sync-alt" id="dashRefreshIcon" aria-hidden="true"></i>
+                    Refresh
+                </button>
+                <a href="{{ url_for('ocm_index') }}#migration-form" class="dash-btn-primary">
+                    <i class="fas fa-plus" aria-hidden="true"></i>
+                    New Migration
+                </a>
+            </div>
+        </div>
+
+        {# ========= 2. KPI CARDS — clickable filters for the Migration History table below.
+              Each card carries a data-filter attr. Clicking a card toggles its filter
+              on the table. Only one card can be active at a time. The "All" filter
+              is the default (no card selected). #}
+        <div class="kpi-grid kpi-grid-5" id="kpi-grid" role="tablist" aria-label="Filter migrations by status">
+            {% set k = data.kpis %}
+            <button type="button" class="kpi-card kpi-total"    data-filter="all"       role="tab" aria-pressed="true">
+                <div class="kpi-label"><i class="fas fa-layer-group" aria-hidden="true"></i> All</div>
+                <div class="kpi-value" id="kpi-total">{{ k.total }}</div>
+                <div class="kpi-sub">migrations in history</div>
+            </button>
+            <button type="button" class="kpi-card kpi-running"  data-filter="running"   role="tab" aria-pressed="false">
+                <div class="kpi-label"><i class="fas fa-circle-notch{% if k.running %} fa-spin{% endif %}" aria-hidden="true"></i> Running Now</div>
+                <div class="kpi-value" id="kpi-running">{{ k.running }}</div>
+                <div class="kpi-sub">active migrations</div>
+            </button>
+            <button type="button" class="kpi-card kpi-insync"   data-filter="in-sync"   role="tab" aria-pressed="false">
+                <div class="kpi-label"><i class="fas fa-sync-alt" aria-hidden="true"></i> Ready for Cutover</div>
+                <div class="kpi-value" id="kpi-insync">{{ k.in_sync }}</div>
+                <div class="kpi-sub">in-sync, awaiting cutover</div>
+            </button>
+            <button type="button" class="kpi-card kpi-completed" data-filter="completed" role="tab" aria-pressed="false">
+                <div class="kpi-label"><i class="fas fa-check-circle" aria-hidden="true"></i> Completed</div>
+                <div class="kpi-value" id="kpi-completed">{{ k.completed }}</div>
+                <div class="kpi-sub">migrated successfully</div>
+            </button>
+            <button type="button" class="kpi-card kpi-failed" data-filter="failed" role="tab" aria-pressed="false">
+                <div class="kpi-label"><i class="fas fa-times-circle" aria-hidden="true"></i> Failed</div>
+                <div class="kpi-value" id="kpi-failed">{{ k.failed }}</div>
+                <div class="kpi-sub">needs review</div>
+            </button>
+        </div>
+
+        {# ========= 3. ACTIVE MIGRATIONS — running work + awaiting user input ========= #}
+        <div class="section">
+            <div class="section-header">
+                <h2 class="section-title"><i class="fas fa-bolt"></i> Active Migrations</h2>
+                <span class="section-sub" id="active-count">
+                    {{ data.active_migrations | length }} active
+                </span>
+            </div>
+            <div class="section-body">
+                <div class="running-cards" id="running-cards">
+                    {% for m in data.active_migrations %}
+                    <a href="{{ url_for('view_ocm_migration', id=m.id) }}" class="running-card status-{{ m.status | lower }}">
+                        <div class="rc-header">
+                            <div class="rc-name">
+                                {% if m.status == 'In-Sync' %}
+                                <i class="fas fa-sync-alt" style="color: #a78bfa; font-size: 8px;" aria-hidden="true"></i>
+                                {% else %}
+                                <span class="live-dot" aria-hidden="true" title="Live"></span>
+                                {% endif %}
+                                {{ m.vm_name }}{% if m.is_batch and m.vm_count > 1 %} <span class="rc-source">+{{ m.vm_count - 1 }}</span>{% endif %}
+                            </div>
+                            <span class="rc-source">{{ m.source_type }}</span>
+                        </div>
+                        <div class="rc-step">
+                            <span class="status-pill status-{{ m.status | lower }}">{{ m.status }}</span>
+                            {% if m.status == 'In-Sync' %}
+                            &middot; Ready for cutover
+                            {% else %}
+                            &middot; Step {{ m.current_step }}/6
+                            {% endif %}
+                        </div>
+                        <div class="rc-progress">
+                            <div class="rc-progress-fill" style="width: {{ m.progress_pct }}%"></div>
+                        </div>
+                        <div class="rc-footer">
+                            <span>{% if m.start_time %}started <span class="js-rel" data-ts="{{ m.start_time }}">just now</span>{% else %}&nbsp;{% endif %}</span>
+                            <span class="rc-view-hint">View details →</span>
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+                <div class="running-idle" id="running-empty" {% if data.active_migrations %}style="display: none;"{% endif %}>
+                    <i class="fas fa-circle" aria-hidden="true"></i>
+                    No active migrations right now.
+                </div>
+            </div>
+        </div>
+
+        {# ========= 4. MIGRATION HISTORY (filtered by active KPI card) =========
+           The embedded Migration History table. Same columns as /ocm but
+           without the separate filter pills — the KPI cards above drive
+           the filter instead. Search + sort are client-side, powered by the
+           full `data.migrations` payload. #}
+        <div class="section">
+            <div class="section-header">
+                <h2 class="section-title"><i class="fas fa-list"></i> Migration History</h2>
+                <span class="section-sub" id="mh-active-filter">showing all</span>
+            </div>
+
+            <div class="mh-toolbar">
+                <input type="text" class="mh-search" id="mh-search"
+                       placeholder="Search VM name, source, status…"
+                       aria-label="Search migration history">
+                <span class="mh-count" id="mh-count">—</span>
+            </div>
+
+            <div class="recent-table-wrap">
+                <table class="recent-table" id="mh-table">
+                    <thead>
+                        <tr>
+                            <th scope="col" data-sort="id">ID<i class="fas fa-sort sort-icon"></i></th>
+                            <th scope="col" data-sort="vm_name">VM Name<i class="fas fa-sort sort-icon"></i></th>
+                            <th scope="col" data-sort="source_type">Source<i class="fas fa-sort sort-icon"></i></th>
+                            <th scope="col" data-sort="status">Status<i class="fas fa-sort sort-icon"></i></th>
+                            <th scope="col" data-sort="current_step">Progress<i class="fas fa-sort sort-icon"></i></th>
+                            <th scope="col" data-sort="start_time">Start<i class="fas fa-sort sort-icon"></i></th>
+                            <th scope="col" data-sort="end_time">End<i class="fas fa-sort sort-icon"></i></th>
+                        </tr>
+                    </thead>
+                    <tbody id="mh-tbody">
+                        {# Rows are always rendered client-side by displayFilteredMigrations()
+                           so the initial render and every auto-refresh go through the same
+                           filter+sort pipeline. An initial "loading" row avoids a flash of
+                           empty table before the first pass runs. #}
+                        <tr id="mh-loading"><td colspan="7" style="text-align:center; padding: 28px; color: #9ca3af;">Loading migrations…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+        </div>
+
+    </div>{# /main-content #}
+
+    {% include '_footer.html' %}
+
+    <script>
+        // =================================================================
+        // Dashboard Command Center — client runtime (2026-04-11)
+        // Data arrives from the server on first render (Jinja) and from
+        // /api/ocm/dashboard on every auto-refresh tick. Both paths share
+        // the same schema; renderDashboard(data) repaints every section.
+        // =================================================================
+
+        // Initial snapshot from Jinja — used to seed js-rel timestamps and
+        // the first render cycle.
+        const INITIAL_DATA = {{ data | tojson }};
+        let currentData = INITIAL_DATA;
+
+        // --- Freshness hint ------------------------------------------------
+        let dashLastRefreshed = Date.now();
+        let dashHasActive = false;
+        let dashRefreshTimer = null;
+
+        function computeActive(data) {
+            return (data && data.active_migrations && data.active_migrations.length > 0);
+        }
+
+        function markDashFreshness(state) {
+            const hint = document.getElementById('dashFreshness');
+            const dot  = document.getElementById('dashFreshnessDot');
+            if (!hint || !dot) return;
+            // Only show the ticking "Updated Ns ago" while something is active.
+            // When idle, silence — matches the pattern we agreed on earlier.
+            hint.style.display = dashHasActive ? 'inline-flex' : 'none';
+            dot.className = 'cache-dot ' + state;
+        }
+        function updateDashFreshnessText() {
+            if (!dashHasActive) return;
+            const textEl = document.getElementById('dashFreshnessText');
+            if (!textEl) return;
+            textEl.textContent = window.formatRelativeTime
+                ? window.formatRelativeTime(dashLastRefreshed)
+                : Math.floor((Date.now() - dashLastRefreshed) / 1000) + 's ago';
+            // Color the dot by age: green <30s (fresh), yellow <3m (slightly stale),
+            // else stale. The .stale class paints amber in base.css.
+            const age = Math.floor((Date.now() - dashLastRefreshed) / 1000);
+            const dot = document.getElementById('dashFreshnessDot');
+            if (dot && !dot.classList.contains('refreshing')) {
+                dot.className = 'cache-dot' + (age >= 30 ? ' stale' : '');
+            }
+        }
+        setInterval(updateDashFreshnessText, 1000);
+
+        function scheduleNextDashRefresh() {
+            if (dashRefreshTimer) clearTimeout(dashRefreshTimer);
+            // 10s cadence while any migration is active, 60s heartbeat otherwise.
+            const nextDelay = dashHasActive ? 10000 : 60000;
+            dashRefreshTimer = setTimeout(fetchDashboard, nextDelay);
+        }
+
+        // --- Data fetch + render cycle ------------------------------------
+        function fetchDashboard() {
+            markDashFreshness('refreshing');
+            fetch('/api/ocm/dashboard', { headers: { 'Accept': 'application/json' } })
+                .then(r => {
+                    if (!r.ok) throw new Error('HTTP ' + r.status);
+                    return r.json();
+                })
+                .then(data => {
+                    currentData = data;
+                    dashLastRefreshed = Date.now();
+                    dashHasActive = computeActive(data);
+                    markDashFreshness('');
+                    updateDashFreshnessText();
+                    renderDashboard(data);
+                    scheduleNextDashRefresh();
+                })
+                .catch(err => {
+                    console.error('Dashboard refresh failed:', err);
+                    markDashFreshness('stale');
+                    scheduleNextDashRefresh();
+                });
+        }
+
+        function manualRefreshDashboard() {
+            const btn = document.getElementById('dashRefreshBtn');
+            const icon = document.getElementById('dashRefreshIcon');
+            if (icon) icon.classList.add('fa-spin');
+            if (btn) btn.disabled = true;
+            fetch('/api/ocm/dashboard', { headers: { 'Accept': 'application/json' } })
+                .then(r => r.json())
+                .then(data => {
+                    currentData = data;
+                    dashLastRefreshed = Date.now();
+                    dashHasActive = computeActive(data);
+                    markDashFreshness('');
+                    updateDashFreshnessText();
+                    renderDashboard(data);
+                    scheduleNextDashRefresh();
+                    if (window.toast) window.toast.success('Dashboard refreshed', { duration: 2000 });
+                })
+                .catch(err => {
+                    if (window.toast) window.toast.error('Refresh failed: ' + err.message);
+                })
+                .finally(() => {
+                    if (icon) icon.classList.remove('fa-spin');
+                    if (btn) btn.disabled = false;
+                });
+        }
+
+        // --- Rendering helpers --------------------------------------------
+        function setText(id, val) {
+            const el = document.getElementById(id);
+            if (el) el.textContent = val;
+        }
+
+        // Four filter-card KPIs: All · Running Now · Ready for Cutover · Completed.
+        // Each card is also a filter toggle for the Migration History table.
+        function renderKpis(kpis, trend) {
+            setText('kpi-total',     kpis.total);
+            setText('kpi-running',   kpis.running);
+            setText('kpi-insync',    kpis.in_sync);
+            setText('kpi-completed', kpis.completed);
+            setText('kpi-failed',    kpis.failed);
+            // Toggle fa-spin on the Running Now icon so it animates when >0.
+            const runIcon = document.querySelector('.kpi-card.kpi-running .kpi-label i');
+            if (runIcon) {
+                runIcon.classList.toggle('fa-spin', (kpis.running || 0) > 0);
+            }
+        }
+
+        function statusClassOf(status) {
+            return 'status-' + String(status).toLowerCase();
+        }
+
+        function renderActive(rows) {
+            const host = document.getElementById('running-cards');
+            const empty = document.getElementById('running-empty');
+            setText('active-count', rows.length + ' active');
+            if (!host) return;
+            if (rows.length === 0) {
+                host.innerHTML = '';
+                if (empty) empty.style.display = 'block';
+                return;
+            }
+            if (empty) empty.style.display = 'none';
+            host.innerHTML = rows.map(m => {
+                const statusCls = statusClassOf(m.status);
+                const isInSync = m.status === 'In-Sync';
+                const batchBadge = (m.is_batch && m.vm_count > 1)
+                    ? ` <span class="rc-source">+${m.vm_count - 1}</span>` : '';
+                const startedFragment = m.start_time
+                    ? `started <span class="js-rel" data-ts="${escapeHtml(m.start_time)}">just now</span>`
+                    : '&nbsp;';
+                const nameIcon = isInSync
+                    ? '<i class="fas fa-sync-alt" style="color: #a78bfa; font-size: 8px;" aria-hidden="true"></i>'
+                    : '<span class="live-dot" aria-hidden="true" title="Live"></span>';
+                const stepLabel = isInSync
+                    ? '&middot; Ready for cutover'
+                    : `&middot; Step ${parseInt(m.current_step)}/6`;
+                return `
+                  <a href="/ocm/migration/${parseInt(m.id)}" class="running-card ${statusCls}">
+                    <div class="rc-header">
+                      <div class="rc-name">${nameIcon}${escapeHtml(m.vm_name)}${batchBadge}</div>
+                      <span class="rc-source">${escapeHtml(m.source_type)}</span>
+                    </div>
+                    <div class="rc-step">
+                      <span class="status-pill ${statusCls}">${escapeHtml(m.status)}</span>
+                      ${stepLabel}
+                    </div>
+                    <div class="rc-progress"><div class="rc-progress-fill" style="width: ${parseInt(m.progress_pct)}%"></div></div>
+                    <div class="rc-footer">
+                      <span>${startedFragment}</span>
+                      <span class="rc-view-hint">View details →</span>
+                    </div>
+                  </a>`;
+            }).join('');
+            applyRelativeTimes(host);
+        }
+
+        // ============================================================
+        // Embedded Migration History — client-side filter + search + sort.
+        // Pattern adapted from ocm_index.html's migration list, adjusted so
+        // the KPI cards at the top of the dashboard drive the filter
+        // instead of a separate pills row.
+        // ============================================================
+        let mhAllMigrations = [];
+        let mhActiveFilter = 'all';          // 'all' | 'running' | 'in-sync' | 'completed'
+        let mhSearchQuery = '';
+        let mhSortColumn = 'id';
+        let mhSortDirection = 'desc';        // newest-first default
+
+        // KPI card filter → set of matching status values.
+        // 'running' expands to the three active states in the backend
+        // (Pending / Running / Cutting-Over) so clicking Running Now
+        // catches everything currently in flight.
+        const FILTER_STATUS_MAP = {
+            'all':       null,  // no filter
+            'running':   new Set(['Pending', 'Running', 'Cutting-Over']),
+            'in-sync':   new Set(['In-Sync']),
+            'completed': new Set(['Completed']),
+            'failed':    new Set(['Failed']),
+        };
+
+        function migrationMatchesCardFilter(m) {
+            const set = FILTER_STATUS_MAP[mhActiveFilter];
+            if (!set) return true;  // 'all'
+            return set.has(m.status);
+        }
+
+        function migrationMatchesSearch(m, q) {
+            if (!q) return true;
+            const hay = [
+                m.vm_name, m.source_type, m.status,
+                m.test_status, m.sync_status,
+                'step ' + m.current_step + '/6',
+                '#' + m.id,
+            ].filter(Boolean).join(' ').toLowerCase();
+            return hay.includes(q);
+        }
+
+        function compareMigrations(a, b, column, direction) {
+            let av = a[column];
+            let bv = b[column];
+            if (column === 'id' || column === 'current_step') {
+                av = parseInt(av); bv = parseInt(bv);
+            } else if (column === 'start_time' || column === 'end_time') {
+                av = av ? Date.parse(av) : 0;
+                bv = bv ? Date.parse(bv) : 0;
+            } else {
+                av = (av || '').toString().toLowerCase();
+                bv = (bv || '').toString().toLowerCase();
+            }
+            if (av < bv) return direction === 'asc' ? -1 : 1;
+            if (av > bv) return direction === 'asc' ? 1 : -1;
+            return 0;
+        }
+
+        function setActiveFilterLabel() {
+            const label = document.getElementById('mh-active-filter');
+            if (!label) return;
+            const labels = {
+                'all':       'showing all',
+                'running':   'showing <strong>Running Now</strong>',
+                'in-sync':   'showing <strong>Ready for Cutover</strong>',
+                'completed': 'showing <strong>Completed</strong>',
+                'failed':    'showing <strong>Failed</strong>',
+            };
+            label.innerHTML = labels[mhActiveFilter] || 'showing all';
+        }
+
+        function displayFilteredMigrations() {
+            const tbody = document.getElementById('mh-tbody');
+            if (!tbody) return;
+            const q = mhSearchQuery.trim().toLowerCase();
+            const filtered = mhAllMigrations
+                .filter(migrationMatchesCardFilter)
+                .filter(m => migrationMatchesSearch(m, q))
+                .sort((a, b) => compareMigrations(a, b, mhSortColumn, mhSortDirection));
+
+            renderMigrationRows(filtered);
+
+            const countEl = document.getElementById('mh-count');
+            if (countEl) {
+                const total = mhAllMigrations.length;
+                countEl.textContent = (filtered.length === total)
+                    ? `${total} migration${total === 1 ? '' : 's'}`
+                    : `${filtered.length} of ${total} shown`;
+            }
+            setActiveFilterLabel();
+        }
+
+        function renderMigrationRows(rows) {
+            const tbody = document.getElementById('mh-tbody');
+            if (!tbody) return;
+            if (rows.length === 0) {
+                tbody.innerHTML = `
+                    <tr><td colspan="8" style="text-align: center; padding: 36px 20px; color: #9ca3af;">
+                        <i class="fas fa-search" style="font-size: 24px; opacity: 0.4; display: block; margin-bottom: 8px;"></i>
+                        No migrations match the current filter or search.
+                    </td></tr>`;
+                // Update colspan to match column count
+                tbody.querySelector('td').setAttribute('colspan', '7');
+                return;
+            }
+            tbody.innerHTML = rows.map(m => {
+                const statusCls = 'status-' + String(m.status).toLowerCase();
+                let statusIcon = '';
+                if (m.status === 'Running')          statusIcon = '<i class="fas fa-circle" style="font-size: 7px;"></i> ';
+                else if (m.status === 'In-Sync')     statusIcon = '<i class="fas fa-sync" style="font-size: 9px;"></i> ';
+                else if (m.status === 'Cutting-Over') statusIcon = '<i class="fas fa-rocket" style="font-size: 9px;"></i> ';
+
+                const batchBadge = (m.is_batch && parseInt(m.vm_count) > 1)
+                    ? ` <span style="color: #9ca3af; font-size: 11px;">(+${parseInt(m.vm_count) - 1})</span>` : '';
+                const testBadge = (m.test_status && m.status === 'In-Sync')
+                    ? ` <span class="status-pill" style="background: #fff4e6; color: #c75300; margin-left: 4px; font-size: 10px;"><i class="fas fa-flask" style="font-size: 8px;"></i> ${escapeHtml(m.test_status)}</span>`
+                    : '';
+                const startCell = m.start_time ? `<span class="js-rel" data-ts="${escapeHtml(m.start_time)}">—</span>` : '—';
+                const endCell   = m.end_time   ? `<span class="js-rel" data-ts="${escapeHtml(m.end_time)}">—</span>`   : '—';
+                const cutoverBtn = m.status === 'In-Sync'
+                    ? `<a href="/ocm/migration/${parseInt(m.id)}" class="btn-sm-primary"><i class="fas fa-rocket"></i> Cutover</a>`
+                    : '';
+
+                const url = `/ocm/migration/${parseInt(m.id)}`;
+                return `
+                  <tr class="mh-clickable-row" onclick="window.location.href='${url}'" style="cursor: pointer;">
+                    <td style="color: #9ca3af; font-size: 12px;">${parseInt(m.id)}</td>
+                    <td><strong>${escapeHtml(m.vm_name)}</strong>${batchBadge}</td>
+                    <td>${escapeHtml(m.source_type)}</td>
+                    <td>
+                      <span class="status-pill ${statusCls}">${statusIcon}${escapeHtml(m.status)}</span>${testBadge}
+                    </td>
+                    <td>
+                      <div class="mini-progress"><div class="mini-progress-fill ${statusCls}" style="width: ${parseInt(m.progress_pct)}%"></div></div>
+                      <span style="font-size: 11px; color: #6b6969;">${parseInt(m.current_step)}/6</span>
+                    </td>
+                    <td style="font-size: 12px; color: #6b6969;">${startCell}</td>
+                    <td style="font-size: 12px; color: #6b6969;">${endCell}</td>
+                  </tr>`;
+            }).join('');
+            applyRelativeTimes(tbody);
+        }
+
+        // --- Relative time helper -----------------------------------------
+        // Server always renders "just now" as the fallback, then the client
+        // upgrades every .js-rel element to a proper relative timestamp.
+        // Uses window.formatRelativeTime from base.js when available.
+        function applyRelativeTimes(root) {
+            const nodes = (root || document).querySelectorAll('.js-rel');
+            nodes.forEach(el => {
+                const ts = el.dataset.ts;
+                if (!ts) return;
+                const label = window.formatRelativeTime
+                    ? window.formatRelativeTime(ts)
+                    : relTime(ts);
+                el.textContent = label;
+            });
+        }
+        function relTime(ts) {
+            const ms = Date.parse(ts);
+            if (!Number.isFinite(ms)) return '';
+            const age = Math.floor((Date.now() - ms) / 1000);
+            if (age < 5)    return 'just now';
+            if (age < 60)   return age + 's ago';
+            if (age < 3600) return Math.floor(age/60) + 'm ago';
+            if (age < 86400) return Math.floor(age/3600) + 'h ago';
+            return Math.floor(age/86400) + 'd ago';
+        }
+        // Tick all .js-rel labels every 30s so they don't go stale.
+        setInterval(() => applyRelativeTimes(document), 30000);
+
+        // Top-level render — called once from Jinja on page load and on
+        // every auto-refresh tick. Updates KPIs, the Currently Running
+        // section, and the embedded Migration History table through the
+        // filter+search+sort pipeline so any active filter state survives
+        // the refresh.
+        function renderDashboard(data) {
+            renderKpis(data.kpis, data.trend);
+            renderActive(data.active_migrations);
+            mhAllMigrations = data.migrations || [];
+            displayFilteredMigrations();
+        }
+
+        // --- Initial wiring ------------------------------------------------
+        document.addEventListener('DOMContentLoaded', function() {
+            // Convert all server-rendered timestamps to relative strings.
+            applyRelativeTimes(document);
+
+            // Seed the Migration History table from the initial payload.
+            mhAllMigrations = INITIAL_DATA.migrations || [];
+            displayFilteredMigrations();
+
+            // KPI cards act as filter toggles. Clicking the active card
+            // returns to 'all'. Only one card can be pressed at a time.
+            document.querySelectorAll('.kpi-card[data-filter]').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const next = this.dataset.filter;
+                    if (next === mhActiveFilter && next !== 'all') {
+                        mhActiveFilter = 'all';  // toggle off → show all
+                    } else {
+                        mhActiveFilter = next;
+                    }
+                    document.querySelectorAll('.kpi-card[data-filter]').forEach(c => {
+                        const pressed = c.dataset.filter === mhActiveFilter;
+                        c.setAttribute('aria-pressed', pressed ? 'true' : 'false');
+                    });
+                    displayFilteredMigrations();
+                    // Scroll the table into view for the first filter click.
+                    const tbl = document.getElementById('mh-table');
+                    if (tbl && window.innerHeight < 900) {
+                        tbl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+                });
+            });
+
+            // Debounced search input (uses base.js window.debounce).
+            const searchInput = document.getElementById('mh-search');
+            if (searchInput) {
+                const onSearch = (window.debounce || function(fn){return fn})(function() {
+                    mhSearchQuery = searchInput.value || '';
+                    displayFilteredMigrations();
+                }, 300);
+                searchInput.addEventListener('input', onSearch);
+            }
+
+            // Sortable column headers.
+            document.querySelectorAll('#mh-table th[data-sort]').forEach(th => {
+                th.addEventListener('click', function() {
+                    const col = this.dataset.sort;
+                    if (mhSortColumn === col) {
+                        mhSortDirection = mhSortDirection === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        mhSortColumn = col;
+                        mhSortDirection = 'asc';
+                    }
+                    document.querySelectorAll('#mh-table th[data-sort]').forEach(h => {
+                        h.classList.remove('sorted');
+                        const icon = h.querySelector('.sort-icon');
+                        if (icon) icon.className = 'fas fa-sort sort-icon';
+                    });
+                    this.classList.add('sorted');
+                    const icon = this.querySelector('.sort-icon');
+                    if (icon) icon.className = `fas fa-sort-${mhSortDirection === 'asc' ? 'up' : 'down'} sort-icon`;
+                    displayFilteredMigrations();
+                });
+            });
+
+            // Seed auto-refresh state from the initial data.
+            dashHasActive = computeActive(INITIAL_DATA);
+            markDashFreshness('');
+            updateDashFreshnessText();
+            scheduleNextDashRefresh();
+        });
+    </script>
+</body>
+</html>

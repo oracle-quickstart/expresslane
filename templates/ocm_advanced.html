@@ -1,0 +1,1510 @@
+<!-- Copyright (c) 2024, 2025, 2026, Oracle and/or its affiliates.
+     Licensed under the Universal Permissive License v1.0 as shown at
+     https://oss.oracle.com/licenses/upl/ -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ExpressLane | OCM - Advanced Configuration</title>
+    <link href="{{ url_for('static', filename='fontawesome/css/all.min.css') }}" rel="stylesheet">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='oracle-favicon.ico') }}">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Oracle Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            background: #f5f3ef;
+            color: #161513;
+            line-height: 1.5;
+            /* Clear the 36px fixed site footer. This page uses .container
+               instead of .main-content, so the _footer.html padding rule
+               doesn't apply automatically. 72px gives breathing room in
+               every schedule state (Immediate / Once / Daily / Weekly)
+               regardless of whether the page scrolls. */
+            padding-bottom: 72px;
+        }
+
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        .page-header {
+            margin-bottom: 24px;
+        }
+
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #6b6969;
+            margin-bottom: 12px;
+        }
+
+        .breadcrumb a {
+            color: #0572ce;
+            text-decoration: none;
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 600;
+            color: #161513;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .badge-info {
+            background: #e1f0fa;
+            color: #0572ce;
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 24px;
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid #e9e8e6;
+            background: #fafafa;
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #161513;
+        }
+
+        .card-body {
+            padding: 0;
+        }
+
+        .config-table-wrapper {
+            overflow-x: auto;
+        }
+
+        .config-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .config-table th {
+            background: #f5f5f5;
+            padding: 12px 8px;
+            text-align: left;
+            font-weight: 600;
+            color: #161513;
+            border-bottom: 2px solid #e9e8e6;
+            white-space: nowrap;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .config-table td {
+            padding: 8px;
+            border-bottom: 1px solid #e9e8e6;
+            vertical-align: middle;
+        }
+
+        .config-table tr.batch-row {
+            background: #fff4e5;
+        }
+
+        .config-table tr.batch-row td {
+            font-weight: 500;
+            border-bottom: 2px solid #f57c00;
+        }
+
+        .config-table tr:hover:not(.batch-row) {
+            background: #fafafa;
+        }
+
+        .config-table select,
+        .config-table input[type="number"] {
+            width: 100%;
+            padding: 6px 8px;
+            border: 1px solid #d6d5d3;
+            border-radius: 4px;
+            font-size: 13px;
+            background: white;
+        }
+
+        /* Sprint 3 #8 — inline validation state for empty shape dropdowns. */
+        .config-table select.invalid,
+        #migration-name.invalid {
+            border-color: #c0352f;
+            box-shadow: 0 0 0 3px rgba(192, 53, 47, 0.12);
+        }
+
+        /* Sprint 3 #8 — resource totals summary card, sits above the
+           Bottom Actions row. Updates live as the user changes dropdowns. */
+        .resource-summary {
+            display: flex;
+            gap: 24px;
+            align-items: center;
+            padding: 14px 24px;
+            background: #f0f7ff;
+            border: 1px solid #cfe3f8;
+            border-radius: 6px;
+            margin-bottom: 16px;
+            font-size: 13px;
+            flex-wrap: wrap;
+        }
+        .resource-summary .resource-summary-label {
+            color: #6b6969;
+            font-weight: 500;
+            margin-right: 4px;
+        }
+        .resource-summary .resource-stat {
+            display: flex;
+            align-items: baseline;
+            gap: 6px;
+        }
+        .resource-summary .resource-stat-num {
+            font-size: 18px;
+            font-weight: 700;
+            color: #0572ce;
+        }
+        .resource-summary .resource-stat-unit {
+            color: #6b6969;
+            font-size: 12px;
+        }
+        .resource-summary .resource-divider {
+            width: 1px;
+            align-self: stretch;
+            background: #cfe3f8;
+        }
+        .resource-summary .resource-validation {
+            margin-left: auto;
+            font-size: 12px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .resource-summary .resource-validation.valid    { color: #0e6333; }
+        .resource-summary .resource-validation.invalid  { color: #c0352f; }
+
+        /* Sprint 3 #8 — schedule radio card selection state. */
+        .schedule-card {
+            transition: all 0.15s ease;
+        }
+        .schedule-card.selected {
+            border-color: #0572ce !important;
+            background: #f0f7ff !important;
+            box-shadow: 0 0 0 2px rgba(5, 114, 206, 0.15);
+        }
+
+        .config-table select:focus,
+        .config-table input[type="number"]:focus {
+            outline: none;
+            border-color: #0572ce;
+        }
+
+        .config-table input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .processor-type-cell {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .processor-type-cell label {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .processor-type-cell input[type="radio"] {
+            cursor: pointer;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-primary {
+            background: #0572ce;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #045a9f;
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #161513;
+            border: 1px solid #d6d5d3;
+        }
+
+        .btn-secondary:hover {
+            background: #f5f5f5;
+        }
+
+        .btn-warning {
+            background: #f57c00;
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background: #e66900;
+        }
+
+        .vm-name-cell {
+            font-weight: 500;
+            min-width: 150px;
+        }
+
+        .source-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 11px;
+            background: #e1f0fa;
+            color: #0572ce;
+        }
+
+        .bottom-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 24px;
+        }
+
+        .help-text {
+            font-size: 12px;
+            color: #6b6969;
+            margin-top: 12px;
+        }
+
+        /* Column widths */
+        .col-vm { min-width: 180px; }
+        .col-processor { min-width: 140px; }
+        .col-shape { min-width: 280px; }
+        .col-ocpu { min-width: 100px; }
+        .col-memory { min-width: 100px; }
+        .col-volume { min-width: 150px; }
+        .col-fault { min-width: 140px; }
+        .col-ip { min-width: 80px; text-align: center; }
+    </style>
+</head>
+<body>
+    {% include '_navbar.html' %}
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 9999; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 40px; border-radius: 8px; text-align: center; max-width: 500px;">
+            <div style="margin-bottom: 20px;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 48px; color: #0572ce;"></i>
+            </div>
+            <h2 style="margin-bottom: 12px; color: #161513;">Loading Configuration</h2>
+            <p id="loading-message" style="color: #6b6969; margin-bottom: 8px;">Fetching VM details...</p>
+            <p id="loading-status" style="color: #6b6969; font-size: 13px;">Please wait</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <div class="breadcrumb">
+                <a href="/ocm">OCM Migrations</a>
+                <i class="fas fa-chevron-right" style="font-size: 10px;"></i>
+                <span>Migration Plan</span>
+            </div>
+            <h1>
+                Migration Plan
+                <span id="vm-count-badge" class="badge badge-info" style="margin-left: 12px; font-size: 14px;">0 VMs</span>
+            </h1>
+        </div>
+
+        <!-- Migration Name Card -->
+        <div class="card">
+            <div class="card-body" style="padding: 20px 24px;">
+                <label for="migration-name" style="font-weight: 600; color: #161513; display: block; margin-bottom: 8px;">
+                    <i class="fas fa-tag" style="color: #0572ce; margin-right: 4px;"></i>
+                    Migration Name
+                </label>
+                <input type="text" id="migration-name" maxlength="100"
+                    style="width: 100%; max-width: 500px; padding: 8px 12px; border: 1px solid #d6d5d3; border-radius: 4px; font-size: 14px;"
+                    placeholder="e.g. webserver-migration">
+                <p class="help-text" style="margin-top: 6px;">Auto-generated from selected VMs. Edit to customize.</p>
+            </div>
+        </div>
+
+        <!-- Configuration Table Card -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-table" style="color: #0572ce;"></i>
+                    VM Configuration Matrix
+                </h2>
+                <p class="help-text">
+                    Configure each VM individually, or use the Batch Apply row to set values for all VMs at once
+                </p>
+            </div>
+            <div class="card-body">
+                <div class="config-table-wrapper">
+                    <table class="config-table" id="config-table">
+                        <thead>
+                            <tr>
+                                <th class="col-vm">VM Name</th>
+                                <th class="col-processor">Processor Type</th>
+                                <th class="col-shape">Instance Shape</th>
+                                <th class="col-ocpu">OCPUs</th>
+                                <th class="col-memory">Memory (GB)</th>
+                                <th class="col-volume">Volume Perf</th>
+                                <th class="col-fault">Fault Domain</th>
+                                <th class="col-ip">Public IP</th>
+                            </tr>
+                        </thead>
+                        <tbody id="config-table-body">
+                            <!-- Batch Apply Row -->
+                            <tr class="batch-row">
+                                <td class="vm-name-cell">
+                                    <button type="button" class="btn btn-warning" onclick="applyBatchToAll()" style="padding: 6px 12px;">
+                                        <i class="fas fa-layer-group"></i>
+                                        Apply to All
+                                    </button>
+                                </td>
+                                <td>
+                                    <div class="processor-type-cell">
+                                        <label>
+                                            <input type="radio" name="batch_processor" value="AMD" onchange="updateBatchShapes()">
+                                            <span>AMD</span>
+                                        </label>
+                                        <label>
+                                            <input type="radio" name="batch_processor" value="Intel" onchange="updateBatchShapes()">
+                                            <span>Intel</span>
+                                        </label>
+                                    </div>
+                                </td>
+                                <td>
+                                    <select id="batch_shape" onchange="onBatchShapeChange()">
+                                        <option value="">-- Select Shape --</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    <select id="batch_ocpus" onchange="updateBatchMemory()" style="display:none;">
+                                    </select>
+                                </td>
+                                <td>
+                                    <select id="batch_memory" style="display:none;">
+                                    </select>
+                                </td>
+                                <td>
+                                    <select id="batch_volume_perf">
+                                        <option value="">-- Select --</option>
+                                        <option value="BALANCED">Balanced</option>
+                                        <option value="HIGHER_PERFORMANCE">Higher Perf</option>
+                                        <option value="LOWER_COST">Lower Cost</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    <select id="batch_fault_domain">
+                                        <option value="">-- Select --</option>
+                                        <option value="AUTO">Auto</option>
+                                        <option value="FAULT-DOMAIN-1">FD-1</option>
+                                        <option value="FAULT-DOMAIN-2">FD-2</option>
+                                        <option value="FAULT-DOMAIN-3">FD-3</option>
+                                    </select>
+                                </td>
+                                <td style="text-align: center;">
+                                    <input type="checkbox" id="batch_public_ip" class="batch-checkbox">
+                                </td>
+                            </tr>
+                            <!-- VM rows will be added here by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Migration Schedule Option -->
+        <div class="card" style="background: #f0f7ff; border: 1px solid #0572ce;">
+            <div class="card-body" style="padding: 16px 24px;">
+                <div style="display: flex; align-items: flex-start; gap: 16px;">
+                    <div style="flex-shrink: 0;">
+                        <i class="fas fa-clock" style="color: #0572ce; font-size: 24px;"></i>
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="font-weight: 600; color: #161513; display: block; margin-bottom: 8px;">
+                            Migration Schedule
+                        </label>
+                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                            <label class="schedule-card" style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; padding: 10px 12px; border-radius: 6px; border: 1px solid #e9e8e6; background: white;">
+                                <input type="radio" name="migration_schedule" value="IMMEDIATE" checked style="margin-top: 3px;" onchange="onScheduleTypeChange()">
+                                <div>
+                                    <div style="font-weight: 500; color: #161513;">Migrate Immediately</div>
+                                    <div style="font-size: 12px; color: #6b6969;">Complete the full migration in one go (Steps 1-6)</div>
+                                </div>
+                            </label>
+                            <label class="schedule-card" style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; padding: 10px 12px; border-radius: 6px; border: 1px solid #e9e8e6; background: white;">
+                                <input type="radio" name="migration_schedule" value="ONCE" style="margin-top: 3px;" onchange="onScheduleTypeChange()">
+                                <div>
+                                    <div style="font-weight: 500; color: #161513;">
+                                        <i class="fas fa-pause-circle" style="color: #f57c00; margin-right: 4px;"></i>
+                                        Run Once & Pause
+                                    </div>
+                                    <div style="font-size: 12px; color: #6b6969;">Initial sync only, then pause in In-Sync state. No automatic schedules. Use "Sync Now" for manual delta syncs.</div>
+                                </div>
+                            </label>
+                            <label class="schedule-card" style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; padding: 10px 12px; border-radius: 6px; border: 1px solid #e9e8e6; background: white;">
+                                <input type="radio" name="migration_schedule" value="DAILY" style="margin-top: 3px;" onchange="onScheduleTypeChange()">
+                                <div>
+                                    <div style="font-weight: 500; color: #161513;">
+                                        <i class="fas fa-sync-alt" style="color: #0572ce; margin-right: 4px;"></i>
+                                        Warm Migration - Daily Sync
+                                    </div>
+                                    <div style="font-size: 12px; color: #6b6969;">Pause after initial replication. OCM will run daily delta syncs automatically. Cutover when ready.</div>
+                                </div>
+                            </label>
+                            <label class="schedule-card" style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; padding: 10px 12px; border-radius: 6px; border: 1px solid #e9e8e6; background: white;">
+                                <input type="radio" name="migration_schedule" value="WEEKLY" style="margin-top: 3px;" onchange="onScheduleTypeChange()">
+                                <div>
+                                    <div style="font-weight: 500; color: #161513;">
+                                        <i class="fas fa-calendar-week" style="color: #0572ce; margin-right: 4px;"></i>
+                                        Warm Migration - Weekly Sync
+                                    </div>
+                                    <div style="font-size: 12px; color: #6b6969;">Pause after initial replication. OCM will run weekly delta syncs automatically. Cutover when ready.</div>
+                                </div>
+                            </label>
+                        </div>
+
+                        <!-- Start Hour Picker (only shown for DAILY/WEEKLY) -->
+                        <div id="start-hour-picker" style="display: none; margin-top: 12px; padding: 12px; background: white; border-radius: 4px; border: 1px solid #e9e8e6;">
+                            <label id="start-hour-label" style="font-weight: 500; color: #161513; display: block; margin-bottom: 8px;">
+                                <i class="fas fa-clock" style="color: #0572ce; margin-right: 4px;"></i>
+                                Start Hour
+                            </label>
+                            <select id="schedule_start_hour" style="padding: 8px 12px; border: 1px solid #d6d5d3; border-radius: 4px; font-size: 14px; min-width: 280px;">
+                            </select>
+                            <p style="font-size: 11px; color: #6b6969; margin-top: 8px;">
+                                Delta syncs will run at this hour. Choose a low-activity time for your workloads.
+                            </p>
+                        </div>
+
+                        <p style="font-size: 12px; color: #6b6969; margin-top: 12px; padding: 8px; background: #fff4e5; border-radius: 4px;">
+                            <i class="fas fa-info-circle" style="color: #f57c00;"></i>
+                            <strong>Warm Migration:</strong> Keeps data synchronized until you trigger the cutover. Use "Sync Now" for on-demand delta syncs before cutover.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Resource summary — Sprint 3 #8 (2026-04-11). Live totals update
+             whenever the user changes a shape, OCPU, or memory dropdown. -->
+        <div class="resource-summary" id="resource-summary" aria-live="polite">
+            <span class="resource-summary-label">Planned resources:</span>
+            <div class="resource-stat">
+                <span class="resource-stat-num" id="rs-vm-count">0</span>
+                <span class="resource-stat-unit">VMs</span>
+            </div>
+            <span class="resource-divider"></span>
+            <div class="resource-stat">
+                <span class="resource-stat-num" id="rs-ocpu-total">0</span>
+                <span class="resource-stat-unit">total OCPUs</span>
+            </div>
+            <span class="resource-divider"></span>
+            <div class="resource-stat">
+                <span class="resource-stat-num" id="rs-memory-total">0</span>
+                <span class="resource-stat-unit">GB total memory</span>
+            </div>
+            <div class="resource-validation" id="rs-validation" role="status">
+                <i class="fas fa-check-circle"></i>
+                <span id="rs-validation-text">Ready to migrate</span>
+            </div>
+        </div>
+
+        <!-- Bottom Actions -->
+        <div class="bottom-actions">
+            <button type="button" class="btn btn-secondary" onclick="cancelAndGoBack()">
+                <i class="fas fa-arrow-left"></i>
+                Cancel
+            </button>
+            <button type="button" class="btn btn-primary" id="save-and-start-btn" onclick="saveAndStartMigration()">
+                <i class="fas fa-play"></i>
+                Save & Start Migration
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // HTML escaping to prevent XSS
+        function escapeHtml(str) {
+            if (str == null) return '';
+            return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+        }
+
+        // Shape definitions
+        const shapes = {
+            AMD: [
+                { value: 'VM.Standard.E6.Flex', label: 'VM.Standard.E6.Flex - AMD EPYC Turin (Flexible)', isFlex: true },
+                { value: 'VM.Standard.E6.Flex', label: 'VM.Standard.E6.Flex - AMD EPYC Milan (Flexible)', isFlex: true },
+                { value: 'VM.Standard.E4.Flex', label: 'VM.Standard.E4.Flex - AMD EPYC Rome (Flexible)', isFlex: true },
+                { value: 'VM.DenseIO.E4.Flex', label: 'VM.DenseIO.E4.Flex - AMD EPYC Rome with NVMe (Flexible)', isFlex: true },
+                { value: 'VM.Optimized3.Flex', label: 'VM.Optimized3.Flex - AMD EPYC Milan High Freq (Flexible)', isFlex: true },
+                { value: 'BM.Standard.E5.192', label: 'BM.Standard.E5.192 - AMD EPYC Milan Bare Metal (192 OCPUs, 2304 GB)', isFlex: false },
+                { value: 'BM.Standard.E4.128', label: 'BM.Standard.E4.128 - AMD EPYC Rome Bare Metal (128 OCPUs, 2048 GB)', isFlex: false }
+            ],
+            Intel: [
+                { value: 'VM.Standard3.Flex', label: 'VM.Standard3.Flex - Intel Ice Lake (Flexible)', isFlex: true },
+                { value: 'VM.Standard2.1', label: 'VM.Standard2.1 - Intel Skylake (1 OCPU, 15 GB)', isFlex: false },
+                { value: 'VM.Standard2.2', label: 'VM.Standard2.2 - Intel Skylake (2 OCPUs, 30 GB)', isFlex: false },
+                { value: 'VM.Standard2.4', label: 'VM.Standard2.4 - Intel Skylake (4 OCPUs, 60 GB)', isFlex: false },
+                { value: 'VM.Standard2.8', label: 'VM.Standard2.8 - Intel Skylake (8 OCPUs, 120 GB)', isFlex: false },
+                { value: 'VM.Standard2.16', label: 'VM.Standard2.16 - Intel Skylake (16 OCPUs, 240 GB)', isFlex: false },
+                { value: 'VM.Standard2.24', label: 'VM.Standard2.24 - Intel Skylake (24 OCPUs, 320 GB)', isFlex: false }
+            ]
+        };
+
+        const ocpuOptions = [1, 2, 4, 8, 16, 24, 32, 48, 64, 80, 96, 112, 128];
+        const memoryPerOcpu = { min: 1, max: 64 };
+
+        let selectedVMs = [];
+        let destinationConfig = {};
+        let assetSpecs = {};  // Store asset specs from Cloud Bridge
+
+        // AWS instance type to OCI shape mapping
+        function mapAwsInstanceToOci(instanceType, cpuCount, memoryGb) {
+            // Parse AWS instance family and size
+            const parts = instanceType ? instanceType.split('.') : [];
+            const family = parts[0] || '';
+            const size = parts[1] || '';
+
+            // Default to AMD E5 Flex
+            let processorType = 'AMD';
+            let shape = 'VM.Standard.E6.Flex';
+            let ocpus = cpuCount || 2;
+            let memory = memoryGb || 16;
+
+            // Map based on AWS instance family
+            if (family.startsWith('t2') || family.startsWith('t3') || family.startsWith('t4')) {
+                // Burstable instances -> AMD E5 Flex (cost-effective)
+                processorType = 'AMD';
+                shape = 'VM.Standard.E6.Flex';
+                ocpus = cpuCount || 2;
+                memory = memoryGb || 8;  // Use actual memory
+            } else if (family.startsWith('m5') || family.startsWith('m6') || family.startsWith('m7')) {
+                // General purpose -> AMD E5 Flex
+                processorType = 'AMD';
+                shape = 'VM.Standard.E6.Flex';
+                ocpus = cpuCount || 2;
+                memory = memoryGb || 16;  // Use actual memory
+            } else if (family.startsWith('c5') || family.startsWith('c6') || family.startsWith('c7')) {
+                // Compute optimized -> AMD Optimized3 Flex (high frequency)
+                processorType = 'AMD';
+                shape = 'VM.Optimized3.Flex';
+                ocpus = cpuCount || 2;
+                memory = memoryGb || 8;  // Use actual memory
+            } else if (family.startsWith('r5') || family.startsWith('r6') || family.startsWith('r7') || family.startsWith('x1')) {
+                // Memory optimized -> AMD E5 Flex with high memory
+                processorType = 'AMD';
+                shape = 'VM.Standard.E6.Flex';
+                ocpus = cpuCount || 2;
+                memory = memoryGb || 32;  // Use actual memory
+            } else if (cpuCount || memoryGb) {
+                // Unknown family but have specs -> use AMD E5 Flex with specs
+                processorType = 'AMD';
+                shape = 'VM.Standard.E6.Flex';
+                ocpus = cpuCount || 2;
+                memory = memoryGb || (ocpus * 8);
+            }
+
+            // Ensure memory is within valid range for OCPUs (1GB to 64GB per OCPU in OCI)
+            const minMem = ocpus * memoryPerOcpu.min;
+            const maxMem = ocpus * memoryPerOcpu.max;
+            memory = Math.max(minMem, Math.min(maxMem, memory));
+
+            return { processorType, shape, ocpus, memory };
+        }
+
+        // VMware VM to OCI shape mapping
+        function mapVmwareToOci(cpuCount, memoryGb, defaultShape, defaultOcpus, defaultMemory) {
+            // For VMware, use the VM's actual CPU and memory if available
+            // Otherwise fall back to defaults from settings
+
+            if (cpuCount && memoryGb) {
+                // Use AMD E5 Flex with VM's actual specs
+                const ocpus = cpuCount;
+                const memory = memoryGb;
+
+                // Ensure memory is within valid range for OCPUs
+                const minMem = ocpus * memoryPerOcpu.min;
+                const maxMem = ocpus * memoryPerOcpu.max;
+                const adjustedMemory = Math.max(minMem, Math.min(maxMem, memory));
+
+                return {
+                    processorType: 'AMD',
+                    shape: 'VM.Standard.E6.Flex',
+                    ocpus: ocpus,
+                    memory: adjustedMemory
+                };
+            } else {
+                // Use defaults from settings
+                return {
+                    processorType: 'AMD',  // Assume default is AMD
+                    shape: defaultShape || 'VM.Standard.E6.Flex',
+                    ocpus: parseInt(defaultOcpus) || 2,
+                    memory: parseInt(defaultMemory) || 16
+                };
+            }
+        }
+
+        // Load data from sessionStorage
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSessionData();
+            fetchAssetSpecs();  // Fetch specs before rendering
+            populateStartHourOptions();
+        });
+
+        function loadSessionData() {
+            const vmsJson = sessionStorage.getItem('selectedVMs');
+            const destJson = sessionStorage.getItem('destinationConfig');
+
+            if (!vmsJson || !destJson) {
+                alert('No VM selection found. Redirecting to main page...');
+                window.location.href = '/ocm';
+                return;
+            }
+
+            selectedVMs = JSON.parse(vmsJson);
+            destinationConfig = JSON.parse(destJson);
+
+            document.getElementById('vm-count-badge').textContent = `${selectedVMs.length} VM${selectedVMs.length > 1 ? 's' : ''}`;
+
+            // Auto-generate migration name: first VM + count of additional.
+            // User can rename to anything they want before submitting.
+            const nameInput = document.getElementById('migration-name');
+            if (selectedVMs.length === 1) {
+                nameInput.value = selectedVMs[0].vm_name;
+            } else {
+                nameInput.value = `${selectedVMs[0].vm_name} (+ ${selectedVMs.length - 1} Additional)`;
+            }
+        }
+
+        function showLoading(message, status) {
+            const overlay = document.getElementById('loading-overlay');
+            overlay.style.display = 'flex';
+            if (message) document.getElementById('loading-message').textContent = message;
+            if (status) document.getElementById('loading-status').textContent = status;
+        }
+
+        function hideLoading() {
+            document.getElementById('loading-overlay').style.display = 'none';
+        }
+
+        function fetchAssetSpecs() {
+            // Query Cloud Bridge directly for VM specs (fast - no migration project created)
+            // VMware VMs have full specs, AWS VMs may have limited info
+            const assetIds = selectedVMs.map(vm => vm.inventory_asset_id);
+
+            console.log('Fetching VM specs from Cloud Bridge inventory...');
+
+            // Show brief loading (this is fast now)
+            showLoading(
+                `Loading VM specifications...`,
+                'Querying Cloud Bridge inventory'
+            );
+
+            fetch('/api/ocm/get-asset-details', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ asset_ids: assetIds })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.assets) {
+                    assetSpecs = data.assets;
+                    console.log('=== Asset Specs Loaded from Cloud Bridge ===');
+                    console.log('Full response:', data);
+
+                    // Log each VM's specs
+                    Object.entries(assetSpecs).forEach(([assetId, specs]) => {
+                        const vm = selectedVMs.find(v => v.inventory_asset_id === assetId);
+                        const vmName = vm ? vm.vm_name : assetId;
+
+                        console.log(`\n${vmName} (${assetId}):`);
+                        console.log(`  Source: ${specs.source || 'unknown'}`);
+                        console.log(`  Specs available: ${specs.specs_available}`);
+
+                        if (specs.specs_available) {
+                            console.log(`  CPU: ${specs.cpu_count || 'N/A'} cores`);
+                            console.log(`  Memory: ${specs.memory_mb ? Math.ceil(specs.memory_mb/1024) : 'N/A'} GB`);
+                        } else {
+                            console.log(`  Note: ${specs.note || specs.error || 'No specs available - will use defaults'}`);
+                        }
+                    });
+                }
+                // Now initialize batch row and render VM rows
+                initializeBatchRow();
+                renderVMRows();
+                hideLoading();
+                // Sprint 3 #8 — wire live validation/summary once rows exist.
+                wireWizardListeners();
+                refreshScheduleCardSelection();
+                // applyIntelligentDefaults uses setTimeout chains (~150ms);
+                // give them time to land before the initial summary runs.
+                setTimeout(updateWizardSummary, 250);
+            })
+            .catch(error => {
+                console.error('Error fetching asset specs:', error);
+                hideLoading();
+                // Continue anyway with defaults
+                initializeBatchRow();
+                renderVMRows();
+                wireWizardListeners();
+                refreshScheduleCardSelection();
+                setTimeout(updateWizardSummary, 250);
+            });
+        }
+
+        function initializeBatchRow() {
+            // Batch row intentionally left empty - user selects only what they want to apply
+            // No defaults are set, allowing selective batch updates
+            console.log('Batch row initialized with no defaults - user can selectively apply fields');
+        }
+
+        function updateBatchShapes() {
+            const processorElem = document.querySelector('input[name="batch_processor"]:checked');
+            const shapeSelect = document.getElementById('batch_shape');
+
+            // Clear existing options
+            shapeSelect.innerHTML = '<option value="">-- Select Shape --</option>';
+
+            // Only populate if a processor type is selected
+            if (processorElem) {
+                const processorType = processorElem.value;
+                shapes[processorType].forEach(shape => {
+                    const option = document.createElement('option');
+                    option.value = shape.value;
+                    option.textContent = shape.label;
+                    option.dataset.isFlex = shape.isFlex;
+                    shapeSelect.appendChild(option);
+                });
+            }
+        }
+
+        function onBatchShapeChange() {
+            const shapeSelect = document.getElementById('batch_shape');
+            const selectedOption = shapeSelect.options[shapeSelect.selectedIndex];
+            const isFlex = selectedOption && selectedOption.dataset.isFlex === 'true';
+
+            const ocpuSelect = document.getElementById('batch_ocpus');
+            const memorySelect = document.getElementById('batch_memory');
+
+            if (isFlex) {
+                ocpuSelect.style.display = 'block';
+                memorySelect.style.display = 'block';
+                populateOcpuOptions('batch_ocpus');
+                updateBatchMemory();
+            } else {
+                ocpuSelect.style.display = 'none';
+                memorySelect.style.display = 'none';
+            }
+        }
+
+        function updateBatchMemory() {
+            updateMemoryOptions('batch_ocpus', 'batch_memory');
+        }
+
+        function populateOcpuOptions(selectId) {
+            const select = document.getElementById(selectId);
+            const currentValue = select.value;
+
+            select.innerHTML = '';
+            ocpuOptions.forEach(ocpu => {
+                const option = document.createElement('option');
+                option.value = ocpu;
+                option.textContent = ocpu;
+                select.appendChild(option);
+            });
+
+            if (currentValue && ocpuOptions.includes(parseInt(currentValue))) {
+                select.value = currentValue;
+            } else {
+                select.value = 2;
+            }
+        }
+
+        function updateMemoryOptions(ocpuSelectId, memorySelectId) {
+            const ocpuSelect = document.getElementById(ocpuSelectId);
+            const memorySelect = document.getElementById(memorySelectId);
+            const selectedOcpus = parseInt(ocpuSelect.value) || 2;
+            const currentValue = memorySelect.value;
+
+            memorySelect.innerHTML = '';
+
+            const minMemory = selectedOcpus * memoryPerOcpu.min;
+            const maxMemory = selectedOcpus * memoryPerOcpu.max;
+
+            const memoryOptions = [];
+            for (let mem = minMemory; mem <= maxMemory; mem *= 2) {
+                memoryOptions.push(mem);
+            }
+            if (!memoryOptions.includes(maxMemory)) {
+                memoryOptions.push(maxMemory);
+            }
+
+            memoryOptions.forEach(mem => {
+                const option = document.createElement('option');
+                option.value = mem;
+                option.textContent = mem;
+                memorySelect.appendChild(option);
+            });
+
+            // Set value
+            if (currentValue && parseInt(currentValue) >= minMemory && parseInt(currentValue) <= maxMemory) {
+                const closest = memoryOptions.reduce((prev, curr) =>
+                    Math.abs(curr - parseInt(currentValue)) < Math.abs(prev - parseInt(currentValue)) ? curr : prev
+                );
+                memorySelect.value = closest;
+            } else {
+                const defaultMem = selectedOcpus * 16;
+                if (memoryOptions.includes(defaultMem)) {
+                    memorySelect.value = defaultMem;
+                } else {
+                    memorySelect.value = memoryOptions[0];
+                }
+            }
+        }
+
+        function renderVMRows() {
+            const tbody = document.getElementById('config-table-body');
+
+            selectedVMs.forEach((vm, index) => {
+                const vmId = vm.inventory_asset_id;
+                const row = document.createElement('tr');
+                row.id = `vm-row-${vmId}`;
+
+                row.innerHTML = `
+                    <td class="vm-name-cell">
+                        <div style="font-weight: 500;">${escapeHtml(vm.vm_name)}</div>
+                        <div><span class="source-badge">${escapeHtml(vm.source_type)}</span></div>
+                    </td>
+                    <td>
+                        <div class="processor-type-cell">
+                            <label>
+                                <input type="radio" name="vm_processor_${vmId}" value="AMD" checked onchange="updateVMShapes('${vmId}')">
+                                <span>AMD</span>
+                            </label>
+                            <label>
+                                <input type="radio" name="vm_processor_${vmId}" value="Intel" onchange="updateVMShapes('${vmId}')">
+                                <span>Intel</span>
+                            </label>
+                        </div>
+                    </td>
+                    <td>
+                        <select id="vm_shape_${vmId}" onchange="onVMShapeChange('${vmId}')">
+                            <option value="">-- Select Shape --</option>
+                        </select>
+                    </td>
+                    <td>
+                        <select id="vm_ocpus_${vmId}" onchange="updateVMMemory('${vmId}')" style="display:none;">
+                        </select>
+                    </td>
+                    <td>
+                        <select id="vm_memory_${vmId}" style="display:none;">
+                        </select>
+                    </td>
+                    <td>
+                        <select id="vm_volume_perf_${vmId}">
+                            <option value="BALANCED" selected>Balanced</option>
+                            <option value="HIGHER_PERFORMANCE">Higher Perf</option>
+                            <option value="LOWER_COST">Lower Cost</option>
+                        </select>
+                    </td>
+                    <td>
+                        <select id="vm_fault_domain_${vmId}">
+                            <option value="AUTO" selected>Auto</option>
+                            <option value="FAULT-DOMAIN-1">FD-1</option>
+                            <option value="FAULT-DOMAIN-2">FD-2</option>
+                            <option value="FAULT-DOMAIN-3">FD-3</option>
+                        </select>
+                    </td>
+                    <td style="text-align: center;">
+                        <input type="checkbox" id="vm_public_ip_${vmId}">
+                    </td>
+                `;
+
+                tbody.appendChild(row);
+
+                // Apply intelligent defaults based on source VM specs
+                applyIntelligentDefaults(vmId, vm);
+            });
+        }
+
+        function applyIntelligentDefaults(vmId, vm) {
+            // Get asset specs if available
+            const specs = assetSpecs[vmId];
+            let defaultShape = 'VM.Standard.E6.Flex';
+            let defaultOcpus = 2;
+            let defaultMemory = 16;
+
+            // Get defaults from batch row
+            const batchShape = document.getElementById('batch_shape').value;
+            const batchOcpus = document.getElementById('batch_ocpus').value;
+            const batchMemory = document.getElementById('batch_memory').value;
+
+            if (batchShape) defaultShape = batchShape;
+            if (batchOcpus) defaultOcpus = parseInt(batchOcpus);
+            if (batchMemory) defaultMemory = parseInt(batchMemory);
+
+            let config = null;
+
+            if (specs && specs.specs_available) {
+                // Extract specs from new API format
+                const cpuCount = specs.cpu_count;
+                const memoryMb = specs.memory_mb;
+                const memoryGb = memoryMb ? Math.ceil(memoryMb / 1024) : null;  // Convert MB to GB
+                const instanceType = specs.instance_type;
+                const sourceType = specs.source;  // 'vmware' or 'aws'
+
+                console.log(`VM ${vm.vm_name} specs: CPU=${cpuCount}, Memory=${memoryGb}GB, Source=${sourceType}`);
+
+                // Map based on source type
+                if (sourceType === 'vmware') {
+                    // VMware VM - use actual VM specs
+                    config = mapVmwareToOci(cpuCount, memoryGb, defaultShape, defaultOcpus, defaultMemory);
+                    console.log(`VMware VM ${vm.vm_name}: Using ${config.shape} with ${config.ocpus} OCPUs and ${config.memory} GB`);
+                } else if (sourceType === 'aws' && instanceType) {
+                    // AWS VM with instance type - use intelligent mapping
+                    config = mapAwsInstanceToOci(instanceType, cpuCount, memoryGb);
+                    console.log(`AWS VM ${vm.vm_name}: Mapped ${instanceType} to ${config.shape} with ${config.ocpus} OCPUs and ${config.memory} GB`);
+                }
+            } else if (specs) {
+                // Specs not available - log the reason
+                console.log(`VM ${vm.vm_name}: ${specs.note || 'Specs not available'}`);
+            }
+
+            // If no config determined, use defaults
+            if (!config) {
+                config = {
+                    processorType: 'AMD',
+                    shape: defaultShape,
+                    ocpus: defaultOcpus,
+                    memory: defaultMemory
+                };
+                console.log(`VM ${vm.vm_name}: Using default config ${config.shape} with ${config.ocpus} OCPUs and ${config.memory} GB`);
+            }
+
+            // Apply the configuration
+            document.querySelector(`input[name="vm_processor_${vmId}"][value="${config.processorType}"]`).checked = true;
+            updateVMShapes(vmId);
+
+            setTimeout(() => {
+                document.getElementById(`vm_shape_${vmId}`).value = config.shape;
+                onVMShapeChange(vmId);
+
+                setTimeout(() => {
+                    const ocpuSelect = document.getElementById(`vm_ocpus_${vmId}`);
+                    if (ocpuSelect.style.display !== 'none') {
+                        ocpuSelect.value = config.ocpus;
+                        updateVMMemory(vmId);
+
+                        setTimeout(() => {
+                            document.getElementById(`vm_memory_${vmId}`).value = config.memory;
+                        }, 50);
+                    }
+                }, 50);
+            }, 50);
+        }
+
+        function updateVMShapes(vmId) {
+            const processorType = document.querySelector(`input[name="vm_processor_${vmId}"]:checked`).value;
+            const shapeSelect = document.getElementById(`vm_shape_${vmId}`);
+
+            shapeSelect.innerHTML = '<option value="">-- Select Shape --</option>';
+            shapes[processorType].forEach(shape => {
+                const option = document.createElement('option');
+                option.value = shape.value;
+                option.textContent = shape.label;
+                option.dataset.isFlex = shape.isFlex;
+                shapeSelect.appendChild(option);
+            });
+        }
+
+        function onVMShapeChange(vmId) {
+            const shapeSelect = document.getElementById(`vm_shape_${vmId}`);
+            const selectedOption = shapeSelect.options[shapeSelect.selectedIndex];
+            const isFlex = selectedOption && selectedOption.dataset.isFlex === 'true';
+
+            const ocpuSelect = document.getElementById(`vm_ocpus_${vmId}`);
+            const memorySelect = document.getElementById(`vm_memory_${vmId}`);
+
+            if (isFlex) {
+                ocpuSelect.style.display = 'block';
+                memorySelect.style.display = 'block';
+                populateOcpuOptions(`vm_ocpus_${vmId}`);
+                updateVMMemory(vmId);
+            } else {
+                ocpuSelect.style.display = 'none';
+                memorySelect.style.display = 'none';
+            }
+        }
+
+        function updateVMMemory(vmId) {
+            updateMemoryOptions(`vm_ocpus_${vmId}`, `vm_memory_${vmId}`);
+        }
+
+        function applyBatchToAll() {
+            // Get batch values
+            const batchProcessorElem = document.querySelector('input[name="batch_processor"]:checked');
+            const batchShape = document.getElementById('batch_shape').value;
+            const batchOcpus = document.getElementById('batch_ocpus').value;
+            const batchMemory = document.getElementById('batch_memory').value;
+            const batchVolumePerf = document.getElementById('batch_volume_perf').value;
+            const batchFaultDomain = document.getElementById('batch_fault_domain').value;
+            const batchPublicIp = document.getElementById('batch_public_ip');
+
+            // Track what will be applied
+            const fieldsToApply = [];
+
+            // Check which fields are set
+            const hasProcessor = batchProcessorElem !== null;
+            const hasShape = batchShape !== '';
+            const hasVolumePerf = batchVolumePerf !== '';
+            const hasFaultDomain = batchFaultDomain !== '';
+
+            // Build list of fields that will be applied
+            if (hasProcessor) fieldsToApply.push('Processor Type');
+            if (hasShape) fieldsToApply.push('Shape');
+            if (hasVolumePerf) fieldsToApply.push('Volume Performance');
+            if (hasFaultDomain) fieldsToApply.push('Fault Domain');
+            if (batchPublicIp.checked) fieldsToApply.push('Public IP');
+
+            // Warn if nothing selected
+            if (fieldsToApply.length === 0) {
+                alert('Please select at least one field in the batch row to apply to all VMs.\n\nYou can set:\n• Processor Type (AMD/Intel)\n• Instance Shape\n• Volume Performance\n• Fault Domain\n• Public IP');
+                return;
+            }
+
+            // Confirm with user
+            if (!confirm(`Apply the following to all ${selectedVMs.length} VMs?\n\n${fieldsToApply.join('\n')}`)) {
+                return;
+            }
+
+            selectedVMs.forEach(vm => {
+                const vmId = vm.inventory_asset_id;
+
+                // Only apply processor type if selected
+                if (hasProcessor) {
+                    const processorValue = batchProcessorElem.value;
+                    document.querySelector(`input[name="vm_processor_${vmId}"][value="${processorValue}"]`).checked = true;
+                    updateVMShapes(vmId);
+                }
+
+                // Only apply shape if selected
+                if (hasShape) {
+                    setTimeout(() => {
+                        document.getElementById(`vm_shape_${vmId}`).value = batchShape;
+                        onVMShapeChange(vmId);
+
+                        // Set OCPU/Memory if applicable
+                        setTimeout(() => {
+                            const ocpuSelect = document.getElementById(`vm_ocpus_${vmId}`);
+                            if (ocpuSelect.style.display !== 'none' && batchOcpus) {
+                                ocpuSelect.value = batchOcpus;
+                                updateVMMemory(vmId);
+
+                                setTimeout(() => {
+                                    if (batchMemory) {
+                                        document.getElementById(`vm_memory_${vmId}`).value = batchMemory;
+                                    }
+                                }, 50);
+                            }
+                        }, 50);
+                    }, 50);
+                }
+
+                // Only apply volume performance if selected
+                if (hasVolumePerf) {
+                    document.getElementById(`vm_volume_perf_${vmId}`).value = batchVolumePerf;
+                }
+
+                // Only apply fault domain if selected
+                if (hasFaultDomain) {
+                    document.getElementById(`vm_fault_domain_${vmId}`).value = batchFaultDomain;
+                }
+
+                // Apply public IP (always, based on checkbox state)
+                if (batchPublicIp.checked) {
+                    document.getElementById(`vm_public_ip_${vmId}`).checked = true;
+                }
+            });
+
+            alert(`Batch configuration applied to all ${selectedVMs.length} VMs:\n\n${fieldsToApply.join('\n')}`);
+        }
+
+        function cancelAndGoBack() {
+            // Clear session storage and go back
+            sessionStorage.removeItem('selectedVMs');
+            sessionStorage.removeItem('destinationConfig');
+            window.location.href = '/ocm';
+        }
+
+        // Show/hide start hour picker based on schedule type
+        function onScheduleTypeChange() {
+            const scheduleType = document.querySelector('input[name="migration_schedule"]:checked').value;
+            const startHourPicker = document.getElementById('start-hour-picker');
+
+            if (scheduleType === 'DAILY' || scheduleType === 'WEEKLY') {
+                startHourPicker.style.display = 'block';
+            } else {
+                startHourPicker.style.display = 'none';
+            }
+            // Sprint 3 #8 — update schedule card selection state + wizard summary
+            refreshScheduleCardSelection();
+            updateWizardSummary();
+        }
+
+        // Sprint 3 #8 (2026-04-11) — visual selection state on schedule cards.
+        function refreshScheduleCardSelection() {
+            document.querySelectorAll('.schedule-card').forEach(card => {
+                const radio = card.querySelector('input[type="radio"]');
+                if (radio && radio.checked) card.classList.add('selected');
+                else card.classList.remove('selected');
+            });
+        }
+
+        // Sprint 3 #8 (2026-04-11) — live resource totals + submit validation.
+        // Re-reads every VM row's shape/OCPU/memory, totals them, and enables
+        // or disables the "Save & Start Migration" button. Called on:
+        //   - migration-name input
+        //   - any VM row change (via delegated change listener below)
+        //   - shape/OCPU/memory dropdown changes
+        //   - schedule card selection
+        function updateWizardSummary() {
+            let vmCount = 0;
+            let totalOcpus = 0;
+            let totalMemory = 0;
+            let allValid = true;
+            let missingReasons = [];
+
+            // Clear any previous .invalid marks; we re-apply below.
+            document.querySelectorAll('.config-table select.invalid').forEach(el => el.classList.remove('invalid'));
+
+            for (const vm of (typeof selectedVMs !== 'undefined' ? selectedVMs : [])) {
+                const vmId = vm.inventory_asset_id;
+                vmCount += 1;
+
+                const shapeSelect = document.getElementById(`vm_shape_${vmId}`);
+                if (!shapeSelect) continue;
+                const shape = shapeSelect.value;
+
+                if (!shape) {
+                    allValid = false;
+                    shapeSelect.classList.add('invalid');
+                    missingReasons.push(`${vm.vm_name}: pick a shape`);
+                    continue;
+                }
+
+                const selectedOption = shapeSelect.options[shapeSelect.selectedIndex];
+                const isFlex = selectedOption && selectedOption.dataset.isFlex === 'true';
+
+                if (isFlex) {
+                    const ocpuSelect = document.getElementById(`vm_ocpus_${vmId}`);
+                    const memorySelect = document.getElementById(`vm_memory_${vmId}`);
+                    const ocpus  = parseInt(ocpuSelect && ocpuSelect.value);
+                    const memory = parseInt(memorySelect && memorySelect.value);
+                    if (!Number.isFinite(ocpus) || !Number.isFinite(memory)) {
+                        allValid = false;
+                        if (ocpuSelect)   ocpuSelect.classList.add('invalid');
+                        if (memorySelect) memorySelect.classList.add('invalid');
+                        missingReasons.push(`${vm.vm_name}: pick OCPUs and memory`);
+                        continue;
+                    }
+                    totalOcpus  += ocpus;
+                    totalMemory += memory;
+                } else {
+                    // Parse fixed shape label e.g. "… (4 OCPUs, 60 GB)" to contribute to totals.
+                    const label = selectedOption.textContent || '';
+                    const m = label.match(/\((\d+)\s*OCPUs?,\s*(\d+)\s*GB\)/);
+                    if (m) {
+                        totalOcpus  += parseInt(m[1]);
+                        totalMemory += parseInt(m[2]);
+                    }
+                }
+            }
+
+            // Migration name check
+            const nameInput = document.getElementById('migration-name');
+            const name = nameInput ? nameInput.value.trim() : '';
+            if (!name) {
+                allValid = false;
+                if (nameInput) nameInput.classList.add('invalid');
+                missingReasons.unshift('Enter a migration name');
+            } else if (nameInput) {
+                nameInput.classList.remove('invalid');
+            }
+
+            // No VMs selected at all → definitely not valid
+            if (vmCount === 0) {
+                allValid = false;
+                missingReasons.unshift('No VMs selected');
+            }
+
+            // Paint the summary card
+            const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+            set('rs-vm-count',     vmCount);
+            set('rs-ocpu-total',   totalOcpus);
+            set('rs-memory-total', totalMemory);
+
+            const validationEl   = document.getElementById('rs-validation');
+            const validationText = document.getElementById('rs-validation-text');
+            if (validationEl && validationText) {
+                if (allValid) {
+                    validationEl.classList.remove('invalid');
+                    validationEl.classList.add('valid');
+                    validationEl.querySelector('i').className = 'fas fa-check-circle';
+                    validationText.textContent = 'Ready to migrate';
+                } else {
+                    validationEl.classList.remove('valid');
+                    validationEl.classList.add('invalid');
+                    validationEl.querySelector('i').className = 'fas fa-exclamation-triangle';
+                    validationText.textContent = missingReasons[0];
+                }
+            }
+
+            // Enable/disable the Save & Start button
+            const saveBtn = document.getElementById('save-and-start-btn');
+            if (saveBtn) {
+                saveBtn.disabled = !allValid;
+                saveBtn.title = allValid ? '' : missingReasons.join(' · ');
+                if (allValid) {
+                    saveBtn.style.opacity = '';
+                    saveBtn.style.cursor = '';
+                } else {
+                    saveBtn.style.opacity = '0.55';
+                    saveBtn.style.cursor = 'not-allowed';
+                }
+            }
+
+            return allValid;
+        }
+
+        // Delegated listeners for dropdown + name changes. Attached on DOMContentLoaded.
+        function wireWizardListeners() {
+            const nameInput = document.getElementById('migration-name');
+            if (nameInput) {
+                nameInput.addEventListener('input', updateWizardSummary);
+            }
+            // Any select or checkbox change inside the config table triggers a re-summary.
+            const tbody = document.getElementById('config-table-body');
+            if (tbody) {
+                tbody.addEventListener('change', updateWizardSummary);
+            }
+            // Schedule radio changes also update visual selection state.
+            document.querySelectorAll('.schedule-card input[type="radio"]').forEach(r => {
+                r.addEventListener('change', refreshScheduleCardSelection);
+            });
+        }
+
+        // Detect browser timezone and populate start-hour dropdown with local times
+        function populateStartHourOptions() {
+            const sel = document.getElementById('schedule_start_hour');
+            sel.innerHTML = '';
+
+            // Detect timezone abbreviation (e.g. "EST", "PST", "IST")
+            const tzAbbr = new Date().toLocaleTimeString('en-US', { timeZoneName: 'short' }).split(' ').pop();
+
+            // Update label to show detected timezone
+            document.getElementById('start-hour-label').innerHTML =
+                '<i class="fas fa-clock" style="color: #0572ce; margin-right: 4px;"></i> Start Hour (' + tzAbbr + ')';
+
+            // For each UTC hour, compute the local time equivalent
+            const now = new Date();
+            const entries = [];
+
+            for (let utcHour = 0; utcHour < 24; utcHour++) {
+                const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), utcHour, 0, 0));
+                const localHour = d.getHours();
+                const localMinute = d.getMinutes();
+
+                const localStr = String(localHour).padStart(2, '0') + ':' + String(localMinute).padStart(2, '0');
+                const utcStr = String(utcHour).padStart(2, '0') + ':00 UTC';
+
+                let label = localStr + ' ' + tzAbbr;
+                if (localHour === 0 && localMinute === 0) label += ' (Midnight)';
+                else if (localHour === 12 && localMinute === 0) label += ' (Noon)';
+                label += '  \u2192  ' + utcStr;
+
+                entries.push({ utcHour, sortKey: localHour * 60 + localMinute, label });
+            }
+
+            // Sort by local time for intuitive ordering
+            entries.sort((a, b) => a.sortKey - b.sortKey);
+
+            entries.forEach(entry => {
+                const opt = document.createElement('option');
+                opt.value = entry.utcHour;   // value is always the UTC hour for the backend
+                opt.textContent = entry.label;
+                sel.appendChild(opt);
+            });
+
+            // Default: UTC hour 2
+            sel.value = '2';
+        }
+
+        // Convert a UTC hour to a local time string for display
+        function utcHourToLocalStr(utcHour) {
+            const now = new Date();
+            const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), utcHour, 0, 0));
+            const localHour = d.getHours();
+            const localMinute = d.getMinutes();
+            const tzAbbr = d.toLocaleTimeString('en-US', { timeZoneName: 'short' }).split(' ').pop();
+            return String(localHour).padStart(2, '0') + ':' + String(localMinute).padStart(2, '0') + ' ' + tzAbbr;
+        }
+
+        function saveAndStartMigration() {
+            // Collect VM configurations
+            const vmConfigs = {};
+
+            for (const vm of selectedVMs) {
+                const vmId = vm.inventory_asset_id;
+                const shape = document.getElementById(`vm_shape_${vmId}`).value;
+
+                if (!shape) {
+                    window.toast.error(`Select a shape for ${vm.vm_name}`);
+                    const el = document.getElementById(`vm_shape_${vmId}`);
+                    if (el) { el.focus(); el.classList.add('invalid'); }
+                    return;
+                }
+
+                const config = {
+                    processor_type: document.querySelector(`input[name="vm_processor_${vmId}"]:checked`).value,
+                    shape: shape,
+                    volume_performance: document.getElementById(`vm_volume_perf_${vmId}`).value,
+                    fault_domain: document.getElementById(`vm_fault_domain_${vmId}`).value,
+                    assign_public_ip: document.getElementById(`vm_public_ip_${vmId}`).checked
+                };
+
+                // Add OCPU/Memory for flex shapes
+                const shapeSelect = document.getElementById(`vm_shape_${vmId}`);
+                const selectedOption = shapeSelect.options[shapeSelect.selectedIndex];
+                if (selectedOption && selectedOption.dataset.isFlex === 'true') {
+                    config.ocpus = parseInt(document.getElementById(`vm_ocpus_${vmId}`).value);
+                    config.memory_gb = parseInt(document.getElementById(`vm_memory_${vmId}`).value);
+                }
+
+                vmConfigs[vmId] = config;
+            }
+
+            // Get migration schedule selection
+            const scheduleType = document.querySelector('input[name="migration_schedule"]:checked').value;
+            const isScheduled = scheduleType !== 'IMMEDIATE';  // ONCE, DAILY, WEEKLY all pause after initial sync
+
+            // Get start hour (only relevant for DAILY/WEEKLY)
+            const startHour = parseInt(document.getElementById('schedule_start_hour').value);
+
+            // Validate migration name
+            const migrationName = document.getElementById('migration-name').value.trim();
+            if (!migrationName) {
+                window.toast.error('Enter a migration name before starting');
+                document.getElementById('migration-name').focus();
+                return;
+            }
+
+            // Prepare payload - use individual configs as "batch" since all are configured
+            const payload = {
+                migration_name: migrationName,
+                vms: selectedVMs,
+                destination_compartment: destinationConfig.compartment,
+                destination_vcn: destinationConfig.vcn,
+                destination_subnet: destinationConfig.subnet,
+                vm_config: {
+                    batch_config: null,  // No batch config in this design
+                    vm_configs: vmConfigs  // Individual VM configs
+                },
+                is_scheduled: isScheduled,  // Warm migration flag (true for ONCE, DAILY, WEEKLY)
+                schedule_type: scheduleType,  // IMMEDIATE, ONCE, DAILY, or WEEKLY
+                start_hour: startHour  // Start hour for DAILY/WEEKLY schedules (0-23 UTC)
+            };
+
+            // Show loading
+            let migrationMode = 'Migration';
+            let scheduleDesc = '';
+            if (scheduleType === 'ONCE') {
+                migrationMode = 'Warm Migration (Run Once)';
+                scheduleDesc = ' - will pause after initial sync';
+            } else if (scheduleType === 'DAILY') {
+                migrationMode = 'Warm Migration (Daily Sync)';
+                scheduleDesc = ` with daily delta syncs at ${utcHourToLocalStr(startHour)} (${String(startHour).padStart(2, '0')}:00 UTC)`;
+            } else if (scheduleType === 'WEEKLY') {
+                migrationMode = 'Warm Migration (Weekly Sync)';
+                scheduleDesc = ` with weekly delta syncs at ${utcHourToLocalStr(startHour)} (${String(startHour).padStart(2, '0')}:00 UTC)`;
+            }
+            showLoading(
+                `Starting ${migrationMode.toLowerCase()}...`,
+                `Configuring ${selectedVMs.length} VM${selectedVMs.length > 1 ? 's' : ''} with advanced settings${scheduleDesc}`
+            );
+
+            // Send to backend
+            fetch('/ocm/start-advanced-migration', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showLoading('Migration started!', 'Redirecting to migration details...');
+
+                    // Clear session storage
+                    sessionStorage.removeItem('selectedVMs');
+                    sessionStorage.removeItem('destinationConfig');
+
+                    // Redirect after brief delay
+                    setTimeout(() => {
+                        window.location.href = `/ocm/migration/${data.migration_id}`;
+                    }, 500);
+                } else {
+                    hideLoading();
+                    window.toast.error('Error starting migration: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                hideLoading();
+                window.toast.error('Error starting migration: ' + error.message);
+            });
+        }
+    </script>
+
+    {% include '_footer.html' %}
+</body>
+</html>

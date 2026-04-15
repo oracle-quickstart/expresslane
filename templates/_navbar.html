@@ -1,0 +1,305 @@
+<!-- Copyright (c) 2024, 2025, 2026, Oracle and/or its affiliates.
+     Licensed under the Universal Permissive License v1.0 as shown at
+     https://oss.oracle.com/licenses/upl/ -->
+
+<!-- Shared design system and client utilities — Sprint 2 / Item #3, 2026-04-11.
+     base.css loads first so per-template <style> blocks can still override.
+     base.js provides fetchWithRetry, debounce, escapeHtml, $/$$, toast/confirmAction
+     stubs to every page. _navbar.html is included at the top of <body> on every
+     authenticated page, so both files are in scope before any page-local script runs. -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+<script src="{{ url_for('static', filename='js/base.js') }}"></script>
+
+<!-- CSRF token for AJAX requests -->
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<script>
+// Auto-inject CSRF token into all fetch POST/PUT/DELETE requests.
+// This stays in _navbar.html (not base.js) because it needs to run
+// synchronously on every page before any other code triggers a fetch.
+(function() {
+    const origFetch = window.fetch;
+    window.fetch = function(url, options) {
+        options = options || {};
+        if (options.method && options.method.toUpperCase() !== 'GET') {
+            options.headers = options.headers || {};
+            if (options.headers instanceof Headers) {
+                if (!options.headers.has('X-CSRFToken')) {
+                    const token = document.querySelector('meta[name="csrf-token"]');
+                    if (token) options.headers.set('X-CSRFToken', token.content);
+                }
+            } else {
+                if (!options.headers['X-CSRFToken']) {
+                    const token = document.querySelector('meta[name="csrf-token"]');
+                    if (token) options.headers['X-CSRFToken'] = token.content;
+                }
+            }
+        }
+        return origFetch.call(this, url, options);
+    };
+})();
+</script>
+<!-- fetchWithRetry moved to static/js/base.js on 2026-04-11.
+     The global is still window.fetchWithRetry — no call site changes needed. -->
+
+<!-- Upgrade Check banner — populated by upgrade_check.py background thread.
+     Shown only when a strict X.Y.Z release newer than the installed version
+     is reported by the release endpoint. Dismissible per-session via
+     sessionStorage. Disable the whole feature with EXPRESSLANE_NO_UPGRADE_CHECK=true. -->
+{% if upgrade_status and upgrade_status.available %}
+<div id="expresslane-upgrade-banner" class="upgrade-banner" role="status">
+    <i class="fas fa-rocket" aria-hidden="true"></i>
+    <span>
+        A newer version of <strong>ExpressLane</strong> is available:
+        <strong>{{ upgrade_status.latest }}</strong>
+        (you are on {{ version }}).
+    </span>
+    {% if upgrade_status.notes_url %}
+    <a href="{{ upgrade_status.notes_url }}" target="_blank" rel="noopener noreferrer">
+        View release notes
+    </a>
+    {% endif %}
+    <button type="button" class="upgrade-banner-close"
+            aria-label="Dismiss upgrade notice"
+            onclick="dismissUpgradeBanner()">×</button>
+</div>
+<script>
+(function() {
+    try {
+        if (sessionStorage.getItem('expresslane-upgrade-banner-dismissed') === '1') {
+            var el = document.getElementById('expresslane-upgrade-banner');
+            if (el) el.style.display = 'none';
+        }
+    } catch (e) { /* sessionStorage blocked — banner stays visible */ }
+})();
+function dismissUpgradeBanner() {
+    try {
+        sessionStorage.setItem('expresslane-upgrade-banner-dismissed', '1');
+    } catch (e) { /* ignore */ }
+    var el = document.getElementById('expresslane-upgrade-banner');
+    if (el) el.style.display = 'none';
+}
+</script>
+<style>
+    .upgrade-banner {
+        background: linear-gradient(90deg, #ffb700, #ff8a00);
+        color: #1a1a1a;
+        padding: 8px 24px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-family: "Oracle Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+        font-size: 13px;
+        font-weight: 500;
+        border-bottom: 1px solid rgba(0,0,0,0.12);
+    }
+    .upgrade-banner i {
+        font-size: 14px;
+    }
+    .upgrade-banner a {
+        color: #1a1a1a;
+        text-decoration: underline;
+        font-weight: 600;
+    }
+    .upgrade-banner a:hover {
+        text-decoration: none;
+    }
+    .upgrade-banner-close {
+        margin-left: auto;
+        background: transparent;
+        border: none;
+        color: #1a1a1a;
+        font-size: 20px;
+        line-height: 1;
+        cursor: pointer;
+        padding: 0 4px;
+        font-weight: 700;
+    }
+    .upgrade-banner-close:hover {
+        opacity: 0.7;
+    }
+</style>
+{% endif %}
+
+<!-- Top Navigation Bar -->
+<div class="top-nav">
+    <!-- Brand Section — links to Dashboard (the landing page) -->
+    <a href="/dashboard" class="brand">
+        <img src="{{ url_for('static', filename='ExpressLaneLogo.svg') }}" alt="ExpressLane" class="brand-icon">
+        <div class="brand-text">
+            <span class="brand-name">ExpressLane</span>
+            <span class="brand-tagline">The fast path inside <img src="{{ url_for('static', filename='oraclelogo.svg') }}" alt="Oracle" class="brand-oracle-logo"></span>
+        </div>
+    </a>
+
+    <!-- Navigation Links — reordered 2026-04-12: Dashboard is the home page,
+         New Migration is the creation workflow, Inventory is reference data. -->
+    <nav class="nav-links">
+        <a href="/ocm" class="nav-link {{ 'active' if request.endpoint == 'ocm_index' else '' }}">
+            <i class="fas fa-plus-circle"></i>
+            <span>New Migration</span>
+        </a>
+        <a href="/dashboard" class="nav-link {{ 'active' if request.endpoint == 'dashboard' else '' }}">
+            <i class="fas fa-tachometer-alt"></i>
+            <span>Dashboard</span>
+        </a>
+        <a href="/inventory" class="nav-link {{ 'active' if request.endpoint == 'inventory_dashboard' else '' }}">
+            <i class="fas fa-cloud-upload-alt"></i>
+            <span>Inventory</span>
+        </a>
+    </nav>
+
+    <!-- Right Section - Help & Settings -->
+    <div class="nav-actions">
+        <a href="/about" class="nav-icon-btn" title="About ExpressLane">
+            <i class="fas fa-question-circle"></i>
+        </a>
+        <a href="/settings" class="nav-icon-btn {{ 'active' if request.endpoint == 'settings' else '' }}" title="Settings">
+            <i class="fas fa-cog"></i>
+        </a>
+        <a href="/logout" class="nav-icon-btn" title="Sign Out"
+           style="border-left: 1px solid rgba(255,255,255,0.15); padding-left: 12px; margin-left: 4px;">
+            <i class="fas fa-sign-out-alt"></i>
+        </a>
+    </div>
+</div>
+
+<style>
+    .top-nav {
+        background: #312d2a;
+        height: 60px;
+        display: flex;
+        align-items: center;
+        padding: 0 24px;
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+
+    /* Brand Section */
+    .brand {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        text-decoration: none;
+        padding: 8px 0;
+        transition: opacity 0.2s ease;
+    }
+
+    .brand:hover {
+        opacity: 0.85;
+    }
+
+    .brand-icon {
+        height: 38px;
+        width: auto;
+        flex-shrink: 0;
+    }
+
+    .brand-text {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .brand-name {
+        color: #ffffff;
+        font-family: "Oracle Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+        font-size: 20px;
+        font-weight: 700;
+        letter-spacing: -0.5px;
+        line-height: 1.1;
+    }
+
+    .brand-tagline {
+        color: #ffb700;
+        font-family: "Oracle Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+        font-size: 11px;
+        font-weight: 500;
+        font-style: italic;
+        letter-spacing: 0.2px;
+        line-height: 1.1;
+    }
+
+    .oracle-red {
+        color: #f80000;
+        font-style: normal;
+        font-weight: 700;
+    }
+    .brand-oracle-logo {
+        height: 8px;
+        width: auto;
+        vertical-align: baseline;
+        position: relative;
+        top: 0px;
+        margin-left: 2px;
+    }
+
+    /* Navigation Links */
+    .nav-links {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        margin-left: 48px;
+        flex: 1;
+    }
+
+    .nav-link {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 10px 18px;
+        color: rgba(255,255,255,0.75);
+        text-decoration: none;
+        border-radius: 6px;
+        font-family: "Oracle Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+        font-size: 14px;
+        font-weight: 500;
+        transition: all 0.15s ease;
+    }
+
+    .nav-link:hover {
+        background: rgba(255,255,255,0.1);
+        color: #ffffff;
+    }
+
+    .nav-link.active {
+        background: rgba(255,255,255,0.12);
+        color: #ffffff;
+    }
+
+    .nav-link i {
+        font-size: 14px;
+        opacity: 0.9;
+    }
+
+    /* Right Actions */
+    .nav-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-left: auto;
+        padding-left: 24px;
+    }
+
+    .nav-icon-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        color: rgba(255,255,255,0.75);
+        text-decoration: none;
+        border-radius: 6px;
+        font-size: 18px;
+        transition: all 0.15s ease;
+    }
+
+    .nav-icon-btn:hover {
+        background: rgba(255,255,255,0.1);
+        color: #ffffff;
+    }
+
+    .nav-icon-btn.active {
+        background: rgba(255,255,255,0.12);
+        color: #ffffff;
+    }
+</style>

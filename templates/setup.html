@@ -1,0 +1,965 @@
+<!-- Copyright (c) 2024, 2025, 2026, Oracle and/or its affiliates.
+     Licensed under the Universal Permissive License v1.0 as shown at
+     https://oss.oracle.com/licenses/upl/ -->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>ExpressLane | Setup Wizard</title>
+    <link href="{{ url_for('static', filename='fontawesome/css/all.min.css') }}" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Oracle Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            background: #f5f3ef;
+            color: #161513;
+            font-size: 14px;
+            line-height: 1.5;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Header */
+        .setup-header {
+            background: #312d2a;
+            width: 100%;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .setup-header img {
+            height: 38px;
+            width: auto;
+        }
+
+        .setup-header .brand-text {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .setup-header .brand-name {
+            color: #ffffff;
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            line-height: 1.1;
+        }
+
+        .setup-header .brand-tagline {
+            color: #ffb700;
+            font-size: 11px;
+            font-weight: 500;
+            font-style: italic;
+            letter-spacing: 0.2px;
+            line-height: 1.1;
+        }
+
+        .oracle-red {
+            color: #f80000;
+            font-style: normal;
+            font-weight: 700;
+        }
+
+        /* Main */
+        .setup-main {
+            width: 100%;
+            max-width: 700px;
+            padding: 40px 24px;
+            flex: 1;
+        }
+
+        .setup-title {
+            font-size: 24px;
+            font-weight: 400;
+            color: #161513;
+            margin-bottom: 8px;
+        }
+
+        .setup-subtitle {
+            font-size: 14px;
+            color: #6b6969;
+            margin-bottom: 32px;
+        }
+
+        /* Step Indicator */
+        .step-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            margin-bottom: 32px;
+        }
+
+        .step-dot {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #d1cec9;
+            color: #6b6969;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 600;
+            flex-shrink: 0;
+            transition: all 0.3s;
+        }
+
+        .step-dot.active {
+            background: #0572ce;
+            color: #fff;
+        }
+
+        .step-dot.completed {
+            background: #2d7d2d;
+            color: #fff;
+        }
+
+        .step-line {
+            flex: 1;
+            height: 2px;
+            background: #d1cec9;
+            transition: background 0.3s;
+        }
+
+        .step-line.completed {
+            background: #2d7d2d;
+        }
+
+        .step-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 8px;
+            margin-bottom: 24px;
+        }
+
+        .step-label {
+            font-size: 11px;
+            color: #6b6969;
+            text-align: center;
+            width: 20%;
+            transition: color 0.3s;
+        }
+
+        .step-label.active {
+            color: #0572ce;
+            font-weight: 600;
+        }
+
+        /* Card */
+        .step-card {
+            background: #fff;
+            border-radius: 8px;
+            padding: 28px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            display: none;
+        }
+
+        .step-card.active {
+            display: block;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 500;
+            color: #161513;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e9e8e6;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-title i {
+            font-size: 18px;
+        }
+
+        /* Form */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            font-weight: 500;
+            color: #161513;
+            margin-bottom: 6px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #d1cec9;
+            border-radius: 4px;
+            font-size: 14px;
+            background: #fff;
+            transition: border-color 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #0572ce;
+            box-shadow: 0 0 0 2px rgba(5, 114, 206, 0.1);
+        }
+
+        .form-help {
+            font-size: 12px;
+            color: #6b6969;
+            margin-top: 4px;
+        }
+
+        select.form-input {
+            padding: 10px 36px 10px 12px;
+            appearance: none;
+            background-image: url('data:image/svg+xml,%3csvg xmlns=%27http://www.w3.org/2000/svg%27 fill=%27none%27 viewBox=%270 0 20 20%27%3e%3cpath stroke=%27%236b6969%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27 stroke-width=%271.5%27 d=%27m6 8 4 4 4-4%27/%3e%3c/svg%3e');
+            background-position: right 12px center;
+            background-repeat: no-repeat;
+            background-size: 16px;
+        }
+
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 640px) {
+            .two-column {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #0572ce;
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            background: #045a9e;
+        }
+
+        .btn-secondary {
+            background: #fff;
+            color: #161513;
+            border: 1px solid #d1cec9;
+        }
+
+        .btn-secondary:hover {
+            background: #f7f8fa;
+        }
+
+        .btn-success {
+            background: #2d7d2d;
+            color: #fff;
+        }
+
+        .btn-success:hover {
+            background: #246524;
+        }
+
+        .step-actions {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 28px;
+            padding-top: 20px;
+            border-top: 1px solid #e9e8e6;
+        }
+
+        /* Alert */
+        .alert-error {
+            background: #fce8e8;
+            color: #8b2635;
+            border: 1px solid #d4a8a8;
+            padding: 12px 16px;
+            border-radius: 4px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Skip link */
+        .skip-link {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .skip-link a {
+            color: #6b6969;
+            font-size: 13px;
+            text-decoration: none;
+        }
+
+        .skip-link a:hover {
+            color: #0572ce;
+            text-decoration: underline;
+        }
+
+        /* Step 0 styles */
+        .verify-result {
+            margin-top: 16px;
+            padding: 12px 16px;
+            border-radius: 4px;
+            display: none;
+        }
+
+        .verify-result.success {
+            display: block;
+            background: #e8f5e8;
+            color: #1a5c1a;
+            border: 1px solid #a8d4a8;
+        }
+
+        .verify-result.error {
+            display: block;
+            background: #fce8e8;
+            color: #8b2635;
+            border: 1px solid #d4a8a8;
+        }
+
+        .verify-result.info {
+            display: block;
+            background: #e3f2fd;
+            color: #0d47a1;
+            border: 1px solid #90caf9;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* Retry button next to dropdowns */
+        .select-with-retry {
+            display: flex;
+            gap: 8px;
+            align-items: stretch;
+        }
+
+        .select-with-retry select {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .retry-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 38px;
+            border: 1px solid #d1cec9;
+            border-radius: 4px;
+            background: #fff;
+            color: #6b6969;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .retry-btn:hover {
+            background: #f7f8fa;
+            color: #0572ce;
+            border-color: #0572ce;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Header -->
+    <div class="setup-header">
+        <img src="{{ url_for('static', filename='ExpressLaneLogo.svg') }}" alt="ExpressLane">
+        <div class="brand-text">
+            <span class="brand-name">ExpressLane</span>
+            <span class="brand-tagline">The fast path inside <span class="oracle-red">Oracle</span></span>
+        </div>
+    </div>
+
+    <!-- Main -->
+    <div class="setup-main">
+        <h1 class="setup-title">Welcome to ExpressLane</h1>
+        <p class="setup-subtitle">Let's configure your OCI environment to get started with cloud migrations.</p>
+
+        {% if error %}
+        <div class="alert-error">
+            <i class="fas fa-exclamation-triangle"></i>
+            {{ error }}
+        </div>
+        {% endif %}
+
+        <!-- Step Indicator -->
+        <div class="step-indicator">
+            <div class="step-dot" id="dot-0">1</div>
+            <div class="step-line" id="line-0"></div>
+            <div class="step-dot" id="dot-1">2</div>
+            <div class="step-line" id="line-1"></div>
+            <div class="step-dot" id="dot-2">3</div>
+        </div>
+        <div class="step-labels">
+            <span class="step-label" id="label-0">OCI CLI</span>
+            <span class="step-label" id="label-1">Environment</span>
+            <span class="step-label" id="label-2">Cloud Bridge</span>
+        </div>
+
+        <!-- Step 0: OCI CLI Config (outside form, uses AJAX) -->
+        <div class="step-card" id="step-0">
+            <h2 class="section-title">
+                <i class="fas fa-terminal" style="color: #f80000;"></i>
+                OCI CLI Configuration
+            </h2>
+
+            <!-- Admin Credentials -->
+            <div
+                style="background: #f7f8fa; border: 1px solid #e9e8e6; border-radius: 6px; padding: 20px; margin-bottom: 24px;">
+                <div
+                    style="font-weight: 500; color: #161513; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-lock" style="color: #f80000; font-size: 14px;"></i>
+                    Admin Account
+                </div>
+                <div class="two-column">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label for="setup_admin_username" class="form-label">Username</label>
+                        <input type="text" id="setup_admin_username" class="form-input" value="admin"
+                            autocomplete="off">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label for="setup_admin_password" class="form-label">Password</label>
+                        <input type="password" id="setup_admin_password" class="form-input"
+                            placeholder="Min 8 characters" autocomplete="new-password">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Instance Principals banner (shown dynamically via JS) -->
+            <div id="ip-banner" style="display: none; padding: 16px 20px; background: #e8f5e9; border: 1px solid #66bb6a; border-radius: 6px; margin-bottom: 20px;">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
+                    <i class="fas fa-shield-alt" style="color: #2e7d32; font-size: 18px;"></i>
+                    <strong style="color: #2e7d32;">Instance Principals Detected</strong>
+                </div>
+                <div style="color: #4a4a4a; font-size: 14px;">
+                    This instance is authenticated via Instance Principals — no API key needed.
+                    <span id="ip-tenancy-info"></span>
+                    Set an admin password above, then click <strong>Next</strong> to continue.
+                </div>
+            </div>
+
+            <div id="oci-config-info" style="padding: 20px; background: #f7f8fa; border-radius: 6px; margin-bottom: 20px;">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                    <i class="fas fa-file-alt" style="font-size: 20px; color: #0572ce;"></i>
+                    <strong style="font-size: 15px;">OCI Configuration</strong>
+                </div>
+                <p style="color: #6b6969; margin-bottom: 0;">
+                    ExpressLane needs a valid OCI configuration to connect to your tenancy.
+                    Run <code>oci setup config</code> on this host to configure credentials,
+                    then click <strong>Verify Connection</strong> below.
+                </p>
+            </div>
+
+            <div id="verify-result" class="verify-result"></div>
+
+            <div class="step-actions">
+                <div></div>
+                <div style="display: flex; gap: 12px;">
+                    <button type="button" class="btn btn-success" onclick="verifyOciConnection()" id="btn-verify">
+                        <i class="fas fa-plug"></i> Verify Connection
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="goToStep(1)" id="btn-next-oci"
+                        style="display: none;">
+                        Next <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <form method="POST" id="setupForm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="admin_username" id="hidden_admin_username">
+            <input type="hidden" name="admin_password" id="hidden_admin_password">
+            <!-- Step 1: OCI Environment -->
+            <div class="step-card" id="step-1">
+                <h2 class="section-title">
+                    <i class="fas fa-cloud" style="color: #f80000;"></i>
+                    OCI Environment
+                </h2>
+
+                <div class="form-group">
+                    <label for="ocm_region" class="form-label">Region</label>
+                    <select id="ocm_region" name="ocm_region" class="form-input" onchange="onRegionChange()">
+                        <!-- Americas -->
+                        <option value="us-ashburn-1">US East (Ashburn)</option>
+                        <option value="us-chicago-1">US Midwest (Chicago)</option>
+                        <option value="us-phoenix-1">US West (Phoenix)</option>
+                        <option value="us-sanjose-1">US West (San Jose)</option>
+                        <option value="ca-montreal-1">Canada Southeast (Montreal)</option>
+                        <option value="ca-toronto-1">Canada Southeast (Toronto)</option>
+                        <option value="mx-monterrey-1">Mexico Northeast (Monterrey)</option>
+                        <option value="mx-queretaro-1">Mexico Central (Queretaro)</option>
+                        <option value="sa-saopaulo-1">Brazil East (Sao Paulo)</option>
+                        <option value="sa-vinhedo-1">Brazil Southeast (Vinhedo)</option>
+                        <option value="sa-santiago-1">Chile Central (Santiago)</option>
+                        <!-- Europe -->
+                        <option value="eu-amsterdam-1">Netherlands Northwest (Amsterdam)</option>
+                        <option value="eu-frankfurt-1">Germany Central (Frankfurt)</option>
+                        <option value="eu-jovanovac-1">Serbia Central (Jovanovac)</option>
+                        <option value="eu-madrid-1">Spain Central (Madrid)</option>
+                        <option value="eu-marseille-1">France South (Marseille)</option>
+                        <option value="eu-milan-1">Italy Northwest (Milan)</option>
+                        <option value="eu-paris-1">France Central (Paris)</option>
+                        <option value="eu-stockholm-1">Sweden Central (Stockholm)</option>
+                        <option value="eu-zurich-1">Switzerland North (Zurich)</option>
+                        <option value="uk-cardiff-1">UK West (Cardiff)</option>
+                        <option value="uk-london-1">UK South (London)</option>
+                        <!-- Middle East & Africa -->
+                        <option value="af-johannesburg-1">South Africa Central (Johannesburg)</option>
+                        <option value="il-jerusalem-1">Israel Central (Jerusalem)</option>
+                        <option value="me-abudhabi-1">UAE Central (Abu Dhabi)</option>
+                        <option value="me-dubai-1">UAE East (Dubai)</option>
+                        <option value="me-jeddah-1">Saudi Arabia West (Jeddah)</option>
+                        <!-- Asia Pacific -->
+                        <option value="ap-chuncheon-1">South Korea North (Chuncheon)</option>
+                        <option value="ap-hyderabad-1">India South (Hyderabad)</option>
+                        <option value="ap-melbourne-1">Australia Southeast (Melbourne)</option>
+                        <option value="ap-mumbai-1">India West (Mumbai)</option>
+                        <option value="ap-osaka-1">Japan Central (Osaka)</option>
+                        <option value="ap-seoul-1">South Korea Central (Seoul)</option>
+                        <option value="ap-singapore-1">Singapore (Singapore)</option>
+                        <option value="ap-sydney-1">Australia East (Sydney)</option>
+                        <option value="ap-tokyo-1">Japan East (Tokyo)</option>
+                    </select>
+                    <div class="form-help">OCI region for OCM service and migrated resources</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="ocm_target_compartment_ocid" class="form-label">Migration Compartment</label>
+                    <div class="select-with-retry">
+                        <select id="ocm_target_compartment_ocid" name="ocm_target_compartment_ocid" class="form-input"
+                            onchange="onSourceCompartmentChange()">
+                            <option value="">-- Select Compartment --</option>
+                        </select>
+                        <button type="button" class="retry-btn" onclick="loadCompartments()" title="Retry loading compartments">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                    <div class="form-help">The compartment created by the OCI Migration console wizard (typically named
+                        "Migration")</div>
+                    <div id="compartment-wait" class="verify-result info" style="display: none; margin-top: 12px;">
+                        <i class="fas fa-spinner fa-spin"></i> Waiting for OCI API key to propagate. Please wait, this
+                        can take up to a minute...
+                    </div>
+                </div>
+
+                <div class="step-actions">
+                    <button type="button" class="btn btn-secondary" onclick="goToStep(0)">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="goToStep(2)">
+                        Next <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Step 2: Cloud Bridge -->
+            <div class="step-card" id="step-2">
+                <h2 class="section-title">
+                    <i class="fas fa-network-wired" style="color: #0572ce;"></i>
+                    Cloud Bridge Configuration
+                </h2>
+
+                <div class="form-group">
+                    <label for="ocm_asset_source_ocid" class="form-label">Asset Source</label>
+                    <div class="select-with-retry">
+                        <select id="ocm_asset_source_ocid" name="ocm_asset_source_ocid" class="form-input">
+                            <option value="">-- Select Asset Source --</option>
+                        </select>
+                        <button type="button" class="retry-btn" onclick="loadAssetSources()" title="Retry loading asset sources">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                    <div class="form-help">Cloud Bridge asset source for VM discovery (VMware vCenter or AWS connector)
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="ocm_replication_bucket_ocid" class="form-label">Replication Bucket</label>
+                    <div class="select-with-retry">
+                        <select id="ocm_replication_bucket_ocid" name="ocm_replication_bucket_ocid" class="form-input">
+                            <option value="">-- Select Bucket --</option>
+                        </select>
+                        <button type="button" class="retry-btn" onclick="loadBuckets()" title="Retry loading buckets">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                    <div class="form-help">Object Storage bucket for VM disk replication during migration</div>
+                </div>
+
+                <div class="step-actions">
+                    <button type="button" class="btn btn-secondary" onclick="goToStep(1)">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </button>
+                    <button type="button" class="btn btn-success" onclick="validateCloudBridge()">
+                        <i class="fas fa-check"></i> Complete Setup
+                    </button>
+                </div>
+                <div id="cloud-bridge-error" class="verify-result error" style="display: none;"></div>
+            </div>
+        </form>
+
+        <div class="skip-link">
+            <a href="/settings">Skip wizard and configure manually in Settings</a>
+        </div>
+    </div>
+
+    <script>
+        // Retry wrapper for fetch() — retries on HTTP 503 + retryable:true (OCI key propagation)
+        // Backoff: 3s → 6s → 12s → 24s → 48s (max ~93s total)
+        async function fetchWithRetry(url, options, maxRetries, baseDelay) {
+            maxRetries = maxRetries || 5;
+            baseDelay = baseDelay || 3000;
+            let lastResponse;
+            for (let attempt = 0; attempt <= maxRetries; attempt++) {
+                lastResponse = await fetch(url, options);
+                if (lastResponse.status !== 503 || attempt === maxRetries) return lastResponse;
+                const clone = lastResponse.clone();
+                try {
+                    const body = await clone.json();
+                    if (!body.retryable) return lastResponse;
+                } catch (e) { return lastResponse; }
+                const delay = baseDelay * Math.pow(2, attempt);
+                console.log(`[fetchWithRetry] ${url} — retry in ${delay/1000}s (${attempt+1}/${maxRetries})`);
+                await new Promise(r => setTimeout(r, delay));
+            }
+            return lastResponse;
+        }
+
+        const currentRegion = "{{ config.get('OCM_REGION', 'us-ashburn-1') }}";
+        const currentCompartment = "{{ config.get('OCM_TARGET_COMPARTMENT_OCID', '') }}";
+        const currentAssetSource = "{{ config.get('OCM_ASSET_SOURCE_OCID', '') }}";
+        const currentBucket = "{{ config.get('OCM_REPLICATION_BUCKET_OCID', '') }}";
+        const ociCliConfigured = {{ 'true' if oci_cli_configured else 'false' }};
+        const adminConfigured = {{ 'true' if admin_configured else 'false' }};
+
+        let currentStep = ociCliConfigured ? 1 : 0;
+
+        // ---- Step Navigation ----
+        function syncAdminFields() {
+            document.getElementById('hidden_admin_username').value =
+                document.getElementById('setup_admin_username').value;
+            document.getElementById('hidden_admin_password').value =
+                document.getElementById('setup_admin_password').value;
+        }
+
+        function goToStep(step) {
+            // Validate admin password when leaving Step 0
+            if (currentStep === 0 && step > 0) {
+                const pw = document.getElementById('setup_admin_password').value;
+                if (!pw || pw.length < 8) {
+                    showVerifyResult(document.getElementById('verify-result'), 'error', 'Please set an admin password (at least 8 characters).');
+                    return;
+                }
+                syncAdminFields();
+            }
+
+            document.getElementById('step-' + currentStep).classList.remove('active');
+            document.getElementById('step-' + step).classList.add('active');
+
+            // Update dots and lines (0-2)
+            for (let i = 0; i <= 2; i++) {
+                const dot = document.getElementById('dot-' + i);
+                const label = document.getElementById('label-' + i);
+                dot.classList.remove('active', 'completed');
+                label.classList.remove('active');
+
+                if (i < step) {
+                    dot.classList.add('completed');
+                    dot.innerHTML = '<i class="fas fa-check" style="font-size:13px"></i>';
+                } else if (i === step) {
+                    dot.classList.add('active');
+                    dot.textContent = i + 1;
+                    label.classList.add('active');
+                } else {
+                    dot.textContent = i + 1;
+                }
+
+                if (i < 2) {
+                    const line = document.getElementById('line-' + i);
+                    line.classList.toggle('completed', i < step);
+                }
+            }
+
+            currentStep = step;
+
+            // Load data on step entry
+            if (step === 1) {
+                // Load compartments for Step 1
+                loadCompartments();
+            } else if (step === 2) {
+                const compId = document.getElementById('ocm_target_compartment_ocid').value;
+                if (compId) {
+                    // Load if dropdown has only the placeholder option or no selection
+                    const assetSel = document.getElementById('ocm_asset_source_ocid');
+                    const bucketSel = document.getElementById('ocm_replication_bucket_ocid');
+                    if (assetSel.options.length <= 1 || !assetSel.value) loadAssetSources();
+                    if (bucketSel.options.length <= 1 || !bucketSel.value) loadBuckets();
+                }
+            }
+        }
+
+        // ---- Step 0: OCI CLI Config ----
+        function showVerifyResult(el, type, message) {
+            const icons = {
+                success: '<i class="fas fa-check-circle"></i> ',
+                error: '<i class="fas fa-exclamation-triangle"></i> ',
+                info: '<i class="fas fa-spinner fa-spin"></i> '
+            };
+            el.className = 'verify-result ' + type;
+            el.style.display = 'block';
+            el.innerHTML = (icons[type] || '') + message;
+        }
+
+        async function verifyOciConnection() {
+            const btn = document.getElementById('btn-verify');
+            const vr = document.getElementById('verify-result');
+            const maxAttempts = 20;
+            const delayMs = 3000;
+
+            btn.disabled = true;
+
+            for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Attempt ' + attempt + '/' + maxAttempts;
+                showVerifyResult(vr, 'info', 'Verifying connection\u2026 attempt ' + attempt + ' of ' + maxAttempts + '. New API keys can take a few minutes to propagate.');
+
+                try {
+                    const resp = await fetch('/api/setup/oci-config');
+                    const data = await resp.json();
+
+                    if (data.status === 'ok') {
+                        showVerifyResult(vr, 'success', 'Connected to tenancy: <strong>' + data.tenancy_name + '</strong> (region: ' + data.region + '). Advancing to next step\u2026');
+                        document.getElementById('btn-next-oci').style.display = '';
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fas fa-plug"></i> Verify Connection';
+                        setTimeout(() => { goToStep(1); }, 1500);
+                        return;
+                    } else if (data.status === 'retry' && attempt < maxAttempts) {
+                        await new Promise(r => setTimeout(r, delayMs));
+                        continue;
+                    } else {
+                        showVerifyResult(vr, 'error', data.message || 'Verification failed.');
+                        break;
+                    }
+                } catch (e) {
+                    showVerifyResult(vr, 'error', 'Network error: ' + e.message);
+                    break;
+                }
+            }
+
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-plug"></i> Verify Connection';
+        }
+
+        // ---- API Calls ----
+        function getRegion() {
+            return document.getElementById('ocm_region').value;
+        }
+
+        function onRegionChange() {
+            document.getElementById('ocm_target_compartment_ocid').innerHTML = '<option value="">-- Select Compartment --</option>';
+            loadCompartments();
+        }
+
+        function onSourceCompartmentChange() {
+            const compId = document.getElementById('ocm_target_compartment_ocid').value;
+            if (compId) {
+                loadAssetSources();
+                loadBuckets();
+            }
+        }
+
+        async function loadCompartments() {
+            const sel = document.getElementById('ocm_target_compartment_ocid');
+            const waitBanner = document.getElementById('compartment-wait');
+            sel.innerHTML = '<option value="">Loading...</option>';
+            sel.disabled = true;
+            waitBanner.style.display = 'block';
+            try {
+                const resp = await fetchWithRetry('/api/ocm/compartments');
+                const data = await resp.json();
+                waitBanner.style.display = 'none';
+                sel.innerHTML = '<option value="">-- Select Compartment --</option>';
+                if (data.compartments && data.compartments.length > 0) {
+                    data.compartments.forEach(c => {
+                        const opt = document.createElement('option');
+                        opt.value = c.id;
+                        opt.textContent = c.name;
+                        sel.appendChild(opt);
+                    });
+                    if (currentCompartment) {
+                        sel.value = currentCompartment;
+                    } else {
+                        // Auto-select the "Migration" compartment if present
+                        const migrationOpt = Array.from(sel.options).find(o => o.textContent === 'Migration');
+                        if (migrationOpt) {
+                            sel.value = migrationOpt.value;
+                            onSourceCompartmentChange();
+                        }
+                    }
+                }
+            } catch (e) {
+                sel.innerHTML = '<option value="">Failed to load — click retry</option>';
+                waitBanner.style.display = 'none';
+            } finally {
+                sel.disabled = false;
+            }
+        }
+
+        async function loadAssetSources() {
+            const sel = document.getElementById('ocm_asset_source_ocid');
+            const compartmentId = document.getElementById('ocm_target_compartment_ocid').value;
+            if (!compartmentId) return;
+            sel.innerHTML = '<option value="">Loading...</option>';
+            sel.disabled = true;
+            try {
+                const resp = await fetchWithRetry(`/api/ocm/asset-sources?compartment_id=${encodeURIComponent(compartmentId)}&region=${encodeURIComponent(getRegion())}`);
+                const data = await resp.json();
+                sel.innerHTML = '<option value="">-- Select Asset Source --</option>';
+                if (data.asset_sources && data.asset_sources.length > 0) {
+                    data.asset_sources.forEach(s => {
+                        const opt = document.createElement('option');
+                        opt.value = s.id;
+                        opt.textContent = `${s.name} (${s.type})`;
+                        sel.appendChild(opt);
+                    });
+                    if (currentAssetSource) sel.value = currentAssetSource;
+                }
+            } catch (e) {
+                sel.innerHTML = '<option value="">Failed to load — click retry</option>';
+            } finally {
+                sel.disabled = false;
+            }
+        }
+
+        async function loadBuckets() {
+            const sel = document.getElementById('ocm_replication_bucket_ocid');
+            // Prevent double loading
+            if (sel.dataset.loading === 'true') return;
+
+            const compartmentId = document.getElementById('ocm_target_compartment_ocid').value;
+            if (!compartmentId) return;
+
+            sel.innerHTML = '<option value="">Loading...</option>';
+            sel.disabled = true;
+            sel.dataset.loading = 'true';
+
+            try {
+                const resp = await fetchWithRetry(`/api/ocm/buckets?compartment_id=${encodeURIComponent(compartmentId)}&region=${encodeURIComponent(getRegion())}`);
+                const data = await resp.json();
+                sel.innerHTML = '<option value="">-- Select Bucket --</option>';
+                if (data.buckets && data.buckets.length > 0) {
+                    data.buckets.forEach(b => {
+                        const opt = document.createElement('option');
+                        opt.value = b.name;
+                        opt.textContent = b.name;
+                        sel.appendChild(opt);
+                    });
+                    if (currentBucket) sel.value = currentBucket;
+                }
+            } catch (e) {
+                sel.innerHTML = '<option value="">Failed to load — click retry</option>';
+            } finally {
+                sel.disabled = false;
+                sel.dataset.loading = 'false';
+            }
+        }
+
+        function validateCloudBridge() {
+            const assetSource = document.getElementById('ocm_asset_source_ocid').value;
+            const bucket = document.getElementById('ocm_replication_bucket_ocid').value;
+            const errDiv = document.getElementById('cloud-bridge-error');
+            if (!assetSource || !bucket) {
+                const missing = [];
+                if (!assetSource) missing.push('Asset Source');
+                if (!bucket) missing.push('Replication Bucket');
+                errDiv.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Please select ' + missing.join(' and ') + '. If none are available, ensure Cloud Bridge has been configured in the OCI Migration console for the selected compartment.';
+                errDiv.style.display = 'block';
+                return;
+            }
+            errDiv.style.display = 'none';
+            syncAdminFields();
+            document.getElementById('setupForm').submit();
+        }
+
+        // ---- Init ----
+        document.addEventListener('DOMContentLoaded', async function () {
+            // Sync admin fields on form submit
+            document.getElementById('setupForm').addEventListener('submit', syncAdminFields);
+
+            // Check auth mode — Instance Principals skip the API key step
+            let isInstancePrincipal = false;
+            try {
+                const amResp = await fetch('/api/setup/auth-mode');
+                const amData = await amResp.json();
+                if (amData.auth_mode === 'instance_principal') {
+                    isInstancePrincipal = true;
+                    // Show banner, hide config info box
+                    document.getElementById('ip-banner').style.display = 'block';
+                    document.getElementById('oci-config-info').style.display = 'none';
+                    document.getElementById('btn-verify').style.display = 'none';
+                    document.getElementById('btn-next-oci').style.display = '';
+                    // Update step label and section title
+                    document.getElementById('label-0').textContent = 'Admin';
+
+                    if (amData.tenancy_name) {
+                        document.getElementById('ip-tenancy-info').innerHTML =
+                            'Connected to tenancy: <strong>' + amData.tenancy_name + '</strong>' +
+                            (amData.region ? ' (' + amData.region + ')' : '') + '.';
+                    }
+                }
+            } catch (e) {
+                // auth-mode check failed — fall through to normal flow
+            }
+
+            // Only skip Step 0 if admin is already configured AND OCI auth works (reconfiguration)
+            const ociReady = ociCliConfigured || isInstancePrincipal;
+            const startStep = (ociReady && adminConfigured) ? 1 : 0;
+            if (ociReady) {
+                document.getElementById('btn-next-oci').style.display = '';
+            }
+            goToStep(startStep);
+
+            document.getElementById('ocm_region').value = currentRegion;
+            if (ociReady) {
+                await loadCompartments();
+                if (currentCompartment) {
+                    document.getElementById('ocm_target_compartment_ocid').value = currentCompartment;
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>

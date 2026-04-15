@@ -1,0 +1,12 @@
+.git
+__pycache__
+instance/
+cache/
+config.json
+*.pyc
+*.pyo
+.env
+deploy/
+*.pem
+*.key
+.claude/

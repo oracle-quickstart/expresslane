@@ -1,0 +1,304 @@
+<!-- Copyright (c) 2024, 2025, 2026, Oracle and/or its affiliates.
+     Licensed under the Universal Permissive License v1.0 as shown at
+     https://oss.oracle.com/licenses/upl/ -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ExpressLane | OCM - About</title>
+    <link href="{{ url_for('static', filename='fontawesome/css/all.min.css') }}" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Oracle Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            background: #f5f3ef;
+            color: #161513;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        /* Main Content */
+        .main-content {
+            padding: 24px;
+            min-height: calc(100vh - 56px);
+            max-width: 900px;
+            margin: 0 auto;
+            padding-bottom: 56px;
+        }
+
+        /* Hero Banner */
+        .hero-banner {
+            background: linear-gradient(135deg, #312d2a 0%, #1a1a1a 100%);
+            border-radius: 8px;
+            padding: 20px 32px;
+            margin-bottom: 24px;
+            border: 1px solid rgba(255, 183, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .hero-banner img {
+            height: 52px;
+            width: auto;
+        }
+
+        .hero-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: #ffffff;
+            letter-spacing: -0.5px;
+            margin-top: 6px;
+        }
+
+        .hero-tagline {
+            font-size: 13px;
+            color: #ffb700;
+            font-weight: 500;
+            font-style: italic;
+            margin-top: 2px;
+        }
+
+        /* Cards */
+        .card {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            margin-bottom: 24px;
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 16px 24px;
+            border-bottom: 1px solid #e0e0e0;
+            background: #fafafa;
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #161513;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card-title i {
+            color: #0572ce;
+        }
+
+        .card-body {
+            padding: 24px;
+        }
+
+        .card-body p {
+            margin-bottom: 16px;
+            line-height: 1.7;
+            color: #333;
+        }
+
+        .card-body p:last-child {
+            margin-bottom: 0;
+        }
+
+        /* Team Member */
+        .team-member {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px;
+            background: #f9f9f9;
+            border-radius: 8px;
+        }
+
+        .team-avatar {
+            width: 64px;
+            height: 64px;
+            background: linear-gradient(135deg, #0572ce, #045a9e);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+
+        .team-info h3 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #161513;
+            margin-bottom: 4px;
+        }
+
+        .team-info .title {
+            color: #0572ce;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .team-info .role {
+            font-size: 13px;
+            color: #6b6969;
+        }
+
+
+
+
+        /* Contact */
+        .contact-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .contact-item:last-child {
+            border-bottom: none;
+        }
+
+        .contact-item i {
+            width: 32px;
+            height: 32px;
+            background: #e6f0ff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #0572ce;
+            flex-shrink: 0;
+        }
+
+        .contact-item a {
+            color: #0572ce;
+            text-decoration: none;
+        }
+
+        .contact-item a:hover {
+            text-decoration: underline;
+        }
+
+
+
+        /* Version Info */
+        .version-info {
+            text-align: center;
+            margin-top: 32px;
+            padding-top: 24px;
+            border-top: 1px solid #e0e0e0;
+            color: #6b6969;
+            font-size: 13px;
+        }
+
+        .version-info strong {
+            color: #161513;
+        }
+
+
+
+    </style>
+</head>
+<body>
+    {% include '_navbar.html' %}
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Hero Banner -->
+        <div class="hero-banner">
+            <img src="{{ url_for('static', filename='ExpressLaneLogo.svg') }}" alt="ExpressLane">
+            <h1 class="hero-title">ExpressLane</h1>
+            <p class="hero-tagline">The fast path inside <span style="color: #f80000; font-style: normal; font-weight: 700;">Oracle</span></p>
+        </div>
+
+        <!-- Mission Card -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-rocket"></i>
+                    Mission
+                </h2>
+            </div>
+            <div class="card-body">
+                <p>
+                    <strong>ExpressLane for Oracle Cloud Migrations</strong> is a high-velocity migration and management
+                    interface designed to simplify complex Oracle Cloud Migrations (OCM) workflows.
+                </p>
+                <p>
+                    Built for speed and efficiency, ExpressLane provides a streamlined experience for migrating
+                    virtual machines from VMware and AWS environments to Oracle Cloud Infrastructure (OCI).
+                    The tool leverages Cloud Bridge for discovery, automated replication for data transfer,
+                    and Resource Manager for seamless deployment.
+                </p>
+                <p>
+                    Our goal is to accelerate cloud adoption and reduce the complexity of enterprise migrations,
+                    enabling organizations to realize the benefits of OCI faster than ever before.
+                </p>
+            </div>
+        </div>
+
+        <!-- Team Card -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-users"></i>
+                    The Team
+                </h2>
+            </div>
+            <div class="card-body">
+                <div class="team-member">
+                    <div class="team-avatar">TM</div>
+                    <div class="team-info">
+                        <h3>Tim McFadden</h3>
+                        <div class="title">Master Principal Cloud Architect</div>
+                        <div class="role">Founder and Principal Architect</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contact Card -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-envelope"></i>
+                    Contact
+                </h2>
+            </div>
+            <div class="card-body">
+                <p>
+                    For feature requests, bug reports, or project inquiries:
+                </p>
+                <div class="contact-item">
+                    <i class="fab fa-github"></i>
+                    <div>
+                        <strong>GitHub:</strong>
+                        <a href="https://github.com/oracle-quickstart/expresslane" target="_blank">github.com/oracle-quickstart/expresslane</a>
+                    </div>
+                </div>
+                <div class="contact-item">
+                    <i class="fas fa-bug"></i>
+                    <div>
+                        <strong>Issues &amp; Feature Requests:</strong>
+                        <a href="https://github.com/oracle-quickstart/expresslane/issues" target="_blank">oracle-quickstart/expresslane/issues</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Version Info -->
+        <div class="version-info">
+            <p><strong>ExpressLane for Oracle Cloud Migrations</strong> &mdash; v{{ version }}</p>
+        </div>
+    </div>
+
+    {% include '_footer.html' %}
+</body>
+</html>

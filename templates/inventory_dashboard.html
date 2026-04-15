@@ -1,0 +1,1375 @@
+<!-- Copyright (c) 2024, 2025, 2026, Oracle and/or its affiliates.
+     Licensed under the Universal Permissive License v1.0 as shown at
+     https://oss.oracle.com/licenses/upl/ -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ExpressLane | Inventory</title>
+    <link href="{{ url_for('static', filename='fontawesome/css/all.min.css') }}" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Oracle Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            background: #f5f3ef;
+            color: #161513;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        /* Main Content */
+        .main-content {
+            padding: 20px 24px;
+            min-height: calc(100vh - 48px);
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        .header-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .header-row-global {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #e9e8e6;
+        }
+
+        .page-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #161513;
+            margin: 0;
+            letter-spacing: -0.2px;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
+        .refresh-group {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 3px;
+        }
+
+        .cache-hint {
+            font-size: 10px;
+            color: #9ca3af;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .cache-hint .cache-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #10b981;
+        }
+
+        .cache-hint .cache-dot.stale { background: #eab308; }
+        .cache-hint .cache-dot.refreshing { background: #0572ce; }
+
+        /* Export Dropdown */
+        .export-dropdown {
+            position: relative;
+            display: flex;
+            align-items: flex-start;
+        }
+
+        .export-dropdown-menu {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 4px;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+            min-width: 160px;
+            z-index: 100;
+            display: none;
+            overflow: hidden;
+        }
+
+        .export-dropdown-menu.show { display: block; }
+
+        .export-dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            font-size: 13px;
+            color: #374151;
+            cursor: pointer;
+            transition: background 0.15s ease;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+        }
+
+        .export-dropdown-item:hover { background: #f3f4f6; }
+        .export-dropdown-item:disabled { opacity: 0.5; cursor: not-allowed; }
+        .export-dropdown-item i { width: 16px; text-align: center; }
+        .export-dropdown-item .fa-file-csv { color: #16a34a; }
+        .export-dropdown-item .fa-file-pdf { color: #dc2626; }
+
+        /* Toolbar */
+        .header-row-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .toolbar-filters {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            border: none;
+        }
+
+        .btn-primary { background: #0572ce; color: white; }
+        .btn-primary:hover { background: #0460a9; }
+        .btn-secondary { background: white; color: #161513; border: 1px solid #d4d2cf; }
+        .btn-secondary:hover { background: #f7f8fa; border-color: #b8b6b3; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* Copy to Clipboard Button */
+        .btn-copy {
+            background: white;
+            color: #374151;
+            border: 1px solid #d4d2cf;
+            position: relative;
+        }
+
+        .btn-copy:hover { background: #f7f8fa; border-color: #b8b6b3; }
+
+        .btn-copy.copied {
+            background: #dcfce7;
+            border-color: #bbf7d0;
+            color: #16a34a;
+        }
+
+        /* Source Filter Pills */
+        .filter-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            border: 2px solid transparent;
+            background: #f3f4f6;
+            color: #4b5563;
+        }
+
+        .filter-pill:hover { background: #e5e7eb; border-color: #d1d5db; }
+
+        .filter-pill.selected {
+            background: #2563eb;
+            color: white;
+            border-color: #2563eb;
+            box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+        }
+
+        .filter-pill.selected:hover { background: #1d4ed8; border-color: #1d4ed8; }
+        .filter-pill i { font-size: 12px; }
+
+        .filter-pill .pill-count {
+            background: rgba(0, 0, 0, 0.08);
+            padding: 1px 8px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .filter-pill.selected .pill-count { background: rgba(255, 255, 255, 0.2); }
+
+        /* Compact KPI Stats Row */
+        .stats-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+
+        .stat-card {
+            background: white;
+            border: 1px solid #e9e8e6;
+            border-radius: 4px;
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+            min-width: 130px;
+        }
+
+        .stat-icon {
+            width: 30px;
+            height: 30px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            flex-shrink: 0;
+        }
+
+        .stat-icon.vms { background: #e6f0ff; color: #0572ce; }
+        .stat-icon.vcpus { background: #fef5e6; color: #8e6f1f; }
+        .stat-icon.ram { background: #e6f7ed; color: #0e6333; }
+        .stat-icon.storage { background: #f3e8ff; color: #6b21a8; }
+        .stat-icon.disks { background: #ffeef0; color: #b91c3c; }
+        .stat-icon.multi-disk { background: #fff7e6; color: #b45309; }
+        .stat-icon.tech-debt { background: #fee2e2; color: #dc2626; }
+
+        .stat-content h3 {
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #6b6969;
+            margin-bottom: 1px;
+            letter-spacing: 0.3px;
+            line-height: 1.2;
+        }
+
+        .stat-content .stat-value {
+            font-size: 18px;
+            font-weight: 400;
+            color: #161513;
+            line-height: 1;
+        }
+
+        .stat-content .stat-unit {
+            font-size: 11px;
+            color: #6b6969;
+            font-weight: 400;
+            margin-left: 1px;
+        }
+
+        /* Risk alert styling for multi-disk and tech debt */
+        .stat-card.risk-alert {
+            border-color: #fecaca;
+            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+        }
+
+        .stat-card.risk-alert .stat-icon { background: #fee2e2; color: #dc2626; }
+        .stat-card.risk-alert h3 { color: #991b1b; }
+        .stat-card.risk-alert .stat-value { color: #dc2626; }
+
+        /* Card */
+        .card {
+            background: white;
+            border: 1px solid #e9e8e6;
+            border-radius: 6px;
+        }
+
+        .card-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid #e9e8e6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .card-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #161513;
+        }
+
+        .card-body { padding: 0; }
+
+        /* Filter Bar */
+        .filter-bar {
+            display: flex;
+            gap: 8px;
+            padding: 10px 16px;
+            background: #f7f8fa;
+            border-bottom: 1px solid #e9e8e6;
+            flex-wrap: wrap;
+        }
+
+        .search-input {
+            flex: 1;
+            min-width: 200px;
+            padding: 8px 12px;
+            border: 1px solid #d4d2cf;
+            border-radius: 4px;
+            font-size: 13px;
+            outline: none;
+            transition: border-color 0.15s ease;
+        }
+
+        .search-input:focus { border-color: #0572ce; }
+
+        .filter-select {
+            padding: 8px 12px;
+            border: 1px solid #d4d2cf;
+            border-radius: 4px;
+            font-size: 13px;
+            background: white;
+            outline: none;
+            cursor: pointer;
+            min-width: 130px;
+        }
+
+        .filter-select:focus { border-color: #0572ce; }
+
+        /* Table */
+        .table-container { overflow-x: auto; }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .table thead {
+            background: #f7f8fa;
+            position: sticky;
+            top: 0;
+        }
+
+        .table th {
+            padding: 10px 12px;
+            text-align: left;
+            font-size: 10px;
+            font-weight: 600;
+            color: #6b6969;
+            text-transform: uppercase;
+            border-bottom: 1px solid #e9e8e6;
+            white-space: nowrap;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.15s ease;
+            letter-spacing: 0.3px;
+        }
+
+        .table th:hover { background: #eef0f2; }
+
+        .table th .sort-icon {
+            margin-left: 4px;
+            opacity: 0.4;
+            font-size: 10px;
+        }
+
+        .table th.sorted .sort-icon { opacity: 1; color: #0572ce; }
+
+        .table td {
+            padding: 8px 12px;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 12px;
+        }
+
+        .table tbody tr:hover { background: #f7f8fa; }
+        .table .hostname { font-weight: 600; color: #161513; font-size: 12px; }
+
+        .table .numeric {
+            text-align: right;
+            font-family: "SF Mono", "Monaco", "Consolas", monospace;
+            font-size: 12px;
+        }
+
+        .table .instance-type-cell {
+            font-family: "SF Mono", "Monaco", "Consolas", monospace;
+            font-size: 11px;
+            color: #0572ce;
+            font-weight: 500;
+        }
+
+        /* Disk Count */
+        .disk-count-cell {
+            font-family: "SF Mono", "Monaco", "Consolas", monospace;
+            text-align: right;
+        }
+
+        .disk-count-cell.multi-disk {
+            background: #fef5e6;
+            color: #b45309;
+            font-weight: 600;
+        }
+
+        .disk-count-cell .disk-icon {
+            margin-left: 4px;
+            font-size: 10px;
+        }
+
+        /* Source Badges */
+        .source-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 7px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .source-badge.vmware { background: #e8f4e8; color: #2d7f2d; }
+        .source-badge.aws { background: #fff3e0; color: #cc7a00; }
+        .source-badge.other { background: #f0f0f0; color: #666; }
+
+        /* Architecture Badge */
+        .arch-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .arch-badge.x86_64 { background: #e6f0ff; color: #0572ce; }
+        .arch-badge.arm64 { background: #e6f7ed; color: #0e6333; }
+        .arch-badge.unknown { background: #f0f0f0; color: #666; }
+
+        /* Power State */
+        .power-state {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+        }
+
+        .power-state .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+        }
+
+        .power-state.on .dot { background: #0e6333; }
+        .power-state.off .dot { background: #8e1f1f; }
+        .power-state.unknown .dot { background: #999; }
+
+        /* Complexity Badge */
+        .complexity-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            padding: 2px 7px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .complexity-badge.standard { background: #dcfce7; color: #166534; }
+        .complexity-badge.moderate { background: #fef3c7; color: #92400e; }
+        .complexity-badge.complex { background: #fee2e2; color: #991b1b; }
+
+        .complexity-badge .score {
+            background: rgba(255,255,255,0.6);
+            padding: 0px 4px;
+            border-radius: 6px;
+            font-size: 9px;
+        }
+
+        /* Intelligence Flags */
+        .intelligence-flags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 3px;
+        }
+
+        .intel-flag {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: 500;
+        }
+
+        .intel-flag.idle { background: #fef3c7; color: #d97706; }
+        .intel-flag.license { background: #f0f9ff; color: #0284c7; }
+        .intel-flag.multi-disk { background: #fff7ed; color: #c2410c; }
+
+        /* Loading State */
+        .loading-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px 24px;
+            color: #6b6969;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #e9e8e6;
+            border-top-color: #0572ce;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 12px;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 24px;
+            color: #6b6969;
+        }
+
+        .empty-state i {
+            font-size: 40px;
+            margin-bottom: 12px;
+            opacity: 0.5;
+        }
+
+        /* Error State */
+        .error-state {
+            text-align: center;
+            padding: 40px 24px;
+            background: #feebeb;
+            border-radius: 6px;
+            margin: 16px;
+        }
+
+        .error-state i { font-size: 28px; color: #8e1f1f; margin-bottom: 8px; }
+        .error-state h3 { color: #8e1f1f; margin-bottom: 8px; }
+        .error-state p { color: #6b6969; }
+
+        /* Pagination */
+        .pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 16px;
+            border-top: 1px solid #e9e8e6;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .pagination-info { color: #6b6969; font-size: 12px; }
+
+        .pagination-controls { display: flex; gap: 6px; }
+
+        .pagination-btn {
+            padding: 6px 12px;
+            border: 1px solid #d4d2cf;
+            border-radius: 4px;
+            background: white;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.15s ease;
+        }
+
+        .pagination-btn:hover:not(:disabled) { background: #f7f8fa; border-color: #b8b6b3; }
+        .pagination-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* Lookup indicator */
+        .lookup-indicator {
+            color: #8e6f1f;
+            font-size: 9px;
+            margin-left: 2px;
+            cursor: help;
+        }
+
+        /* Toast */
+        .toast-container {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 9999;
+        }
+
+        .toast {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #312d2a;
+            color: white;
+            padding: 12px 16px;
+            border-radius: 6px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            animation: slideIn 0.3s ease;
+            max-width: 360px;
+            font-size: 13px;
+        }
+
+        .toast.success { background: #0e6333; }
+        .toast.info { background: #0572ce; }
+        .toast-icon { font-size: 16px; }
+        .toast-content { flex: 1; }
+        .toast-title { font-weight: 600; font-size: 13px; }
+        .toast-message { font-size: 11px; opacity: 0.9; margin-top: 2px; }
+
+        .toast-close {
+            background: none;
+            border: none;
+            color: rgba(255,255,255,0.7);
+            cursor: pointer;
+            font-size: 16px;
+            padding: 4px;
+        }
+
+        .toast-close:hover { color: white; }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .stats-row { gap: 6px; }
+            .stat-card { min-width: 110px; }
+        }
+
+        @media (max-width: 768px) {
+            .stats-row { flex-wrap: wrap; }
+            .stat-card { min-width: calc(50% - 4px); flex: unset; }
+        }
+    </style>
+</head>
+<body>
+    {% include '_navbar.html' %}
+
+    <div class="main-content">
+        <!-- Header -->
+        <div class="header-container">
+            <div class="header-row-global">
+                <h1 class="page-title">Inventory</h1>
+                <div class="header-actions">
+                    <div class="refresh-group">
+                        <button class="btn btn-secondary" onclick="refreshData(true)" id="refreshBtn">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
+                        <div class="cache-hint" id="cacheStatus">
+                            <span class="cache-dot" id="cacheDot"></span>
+                            <span>Data from: <span id="cacheTime">--</span></span>
+                        </div>
+                    </div>
+
+                    <!-- Copy to Clipboard -->
+                    <button class="btn btn-copy" onclick="copyTableToClipboard()" id="copyTableBtn" disabled title="Copy table to clipboard">
+                        <i class="fas fa-clipboard"></i> Copy
+                    </button>
+
+                    <!-- Export CSV -->
+                    <button class="btn btn-primary" onclick="exportCSV()" id="exportBtn" disabled>
+                        <i class="fas fa-download"></i> Export CSV
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filter Tabs -->
+            <div class="header-row-toolbar">
+                <div class="toolbar-filters" id="sourceFilterBar">
+                    <button class="filter-pill selected" data-source="" onclick="toggleSourceFilter(null)">
+                        <i class="fas fa-layer-group"></i>
+                        <span>All Sources</span>
+                        <span class="pill-count"><span id="totalCountPill">-</span></span>
+                    </button>
+                    <button class="filter-pill" data-source="VMware" onclick="toggleSourceFilter('VMware')">
+                        <i class="fas fa-server"></i>
+                        <span>VMware</span>
+                        <span class="pill-count"><span id="vmwareCount">-</span></span>
+                    </button>
+                    <button class="filter-pill" data-source="AWS" onclick="toggleSourceFilter('AWS')">
+                        <i class="fab fa-aws"></i>
+                        <span>AWS</span>
+                        <span class="pill-count"><span id="awsCount">-</span></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Compact KPI Stats Row -->
+        <div class="stats-row" id="statsGrid">
+            <div class="stat-card">
+                <div class="stat-icon vms"><i class="fas fa-server"></i></div>
+                <div class="stat-content">
+                    <h3>Total VMs</h3>
+                    <div class="stat-value" id="totalVms">-</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon vcpus"><i class="fas fa-microchip"></i></div>
+                <div class="stat-content">
+                    <h3>vCPUs</h3>
+                    <div class="stat-value" id="totalVcpus">-</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon ram"><i class="fas fa-memory"></i></div>
+                <div class="stat-content">
+                    <h3>RAM</h3>
+                    <div class="stat-value"><span id="totalRam">-</span><span class="stat-unit" id="totalRamUnit">TB</span></div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon storage"><i class="fas fa-hdd"></i></div>
+                <div class="stat-content">
+                    <h3>Storage</h3>
+                    <div class="stat-value"><span id="totalStorage">-</span><span class="stat-unit" id="totalStorageUnit">TB</span></div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon disks"><i class="fas fa-compact-disc"></i></div>
+                <div class="stat-content">
+                    <h3>Disks</h3>
+                    <div class="stat-value" id="totalDisks">-</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Asset Table (Main Focus) -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">Discovered Assets</h2>
+                <span id="assetCount" style="color: #6b6969; font-size: 12px;">Loading...</span>
+            </div>
+
+            <!-- Filter Bar -->
+            <div class="filter-bar">
+                <input type="text" class="search-input" id="searchInput" placeholder="Search hostname, instance type, OS, IP...">
+                <select class="filter-select" id="sourceFilter">
+                    <option value="">All Sources</option>
+                    <option value="VMware">VMware</option>
+                    <option value="AWS">AWS</option>
+                </select>
+                <select class="filter-select" id="archFilter">
+                    <option value="">All Architectures</option>
+                    <option value="x86_64">x86_64</option>
+                    <option value="arm64">arm64 (Graviton)</option>
+                </select>
+                <select class="filter-select" id="diskFilter">
+                    <option value="">All Disk Counts</option>
+                    <option value="single">Single Disk</option>
+                    <option value="multi">Multi-Disk (2+)</option>
+                </select>
+                <select class="filter-select" id="intelFilter">
+                    <option value="">All Assets</option>
+                    <option value="idle">Zombie VMs</option>
+                    <option value="license">Commercial OS</option>
+                </select>
+            </div>
+
+            <div class="card-body">
+                <!-- Loading -->
+                <div class="loading-container" id="loadingState">
+                    <div class="loading-spinner"></div>
+                    <p>Aggregating inventory from connected bridges...</p>
+                </div>
+
+                <!-- Error -->
+                <div class="error-state" id="errorState" style="display: none;">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <h3>Failed to Load Inventory</h3>
+                    <p id="errorMessage">An error occurred while fetching inventory data.</p>
+                    <button class="btn btn-secondary" onclick="refreshData(true)" style="margin-top: 12px;">
+                        <i class="fas fa-redo"></i> Retry
+                    </button>
+                </div>
+
+                <!-- Table -->
+                <div class="table-container" id="tableContainer" style="display: none;">
+                    <table class="table" id="assetsTable">
+                        <thead>
+                            <tr>
+                                <th data-sort="hostname">Hostname<i class="fas fa-sort sort-icon"></i></th>
+                                <th data-sort="source_type">Source<i class="fas fa-sort sort-icon"></i></th>
+                                <th data-sort="instance_type">Instance Type<i class="fas fa-sort sort-icon"></i></th>
+                                <th data-sort="architecture">Arch<i class="fas fa-sort sort-icon"></i></th>
+                                <th data-sort="vcpu_count" class="numeric">vCPUs<i class="fas fa-sort sort-icon"></i></th>
+                                <th data-sort="memory_gb" class="numeric">RAM (GB)<i class="fas fa-sort sort-icon"></i></th>
+                                <th data-sort="storage_gb" class="numeric">Storage (GB)<i class="fas fa-sort sort-icon"></i></th>
+                                <th data-sort="disk_count" class="numeric">Disks<i class="fas fa-sort sort-icon"></i></th>
+                                <th data-sort="os_type">OS<i class="fas fa-sort sort-icon"></i></th>
+                                <th data-sort="power_state">State<i class="fas fa-sort sort-icon"></i></th>
+                                <th>Flags</th>
+                            </tr>
+                        </thead>
+                        <tbody id="assetsTableBody"></tbody>
+                    </table>
+
+                    <div class="empty-state" id="emptyState" style="display: none;">
+                        <i class="fas fa-search"></i>
+                        <p>No assets match your search criteria</p>
+                    </div>
+                </div>
+
+                <!-- Pagination -->
+                <div class="pagination" id="pagination" style="display: none;">
+                    <div class="pagination-info">
+                        Showing <span id="showingStart">1</span>-<span id="showingEnd">25</span> of <span id="totalFiltered">0</span> assets
+                    </div>
+                    <div class="pagination-controls">
+                        <button class="pagination-btn" id="prevBtn" onclick="prevPage()" disabled>
+                            <i class="fas fa-chevron-left"></i> Prev
+                        </button>
+                        <button class="pagination-btn" id="nextBtn" onclick="nextPage()">
+                            Next <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% include '_footer.html' %}
+
+    <script>
+        // State
+        let allAssets = [];
+        let filteredAssets = [];
+        let summaryData = null;
+        let currentPage = 1;
+        const pageSize = 25;
+        let sortColumn = 'hostname';
+        let sortDirection = 'asc';
+        let activeSourceFilter = null;
+
+        // Init
+        document.addEventListener('DOMContentLoaded', function() {
+            refreshData();
+
+            document.getElementById('searchInput').addEventListener('input', debounce(filterAssets, 300));
+            document.getElementById('sourceFilter').addEventListener('change', function() {
+                activeSourceFilter = this.value || null;
+                updateFilterPillSelection();
+                applySourceFilter();
+            });
+            document.getElementById('archFilter').addEventListener('change', filterAssets);
+            document.getElementById('diskFilter').addEventListener('change', filterAssets);
+            document.getElementById('intelFilter').addEventListener('change', filterAssets);
+
+            document.querySelectorAll('.table th[data-sort]').forEach(th => {
+                th.addEventListener('click', () => sortTable(th.dataset.sort));
+            });
+        });
+
+        function debounce(func, wait) {
+            let timeout;
+            return function(...args) {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(this, args), wait);
+            };
+        }
+
+        // Source Filter Pills
+        function toggleSourceFilter(source) {
+            activeSourceFilter = source;
+            updateFilterPillSelection();
+            const sourceFilterDropdown = document.getElementById('sourceFilter');
+            sourceFilterDropdown.value = activeSourceFilter || '';
+            applySourceFilter();
+        }
+
+        function updateFilterPillSelection() {
+            document.querySelectorAll('.filter-pill').forEach(pill => {
+                pill.classList.remove('selected');
+            });
+            const sourceValue = activeSourceFilter || '';
+            const activePill = document.querySelector(`.filter-pill[data-source="${sourceValue}"]`);
+            if (activePill) activePill.classList.add('selected');
+        }
+
+        function applySourceFilter() {
+            let sourceFilteredAssets = allAssets;
+            if (activeSourceFilter) {
+                sourceFilteredAssets = allAssets.filter(asset => {
+                    if (activeSourceFilter === 'Other') {
+                        return asset.source_type !== 'VMware' && asset.source_type !== 'AWS';
+                    }
+                    return asset.source_type === activeSourceFilter;
+                });
+            }
+            updateFilteredStats(sourceFilteredAssets);
+            filterAssets();
+        }
+
+        function updateFilteredStats(assets) {
+            const totalVms = assets.length;
+            const totalVcpus = assets.reduce((sum, a) => sum + (a.vcpu_count || 0), 0);
+            const totalRamGb = assets.reduce((sum, a) => sum + (a.memory_gb || 0), 0);
+            const totalStorageGb = assets.reduce((sum, a) => sum + (a.storage_gb || 0), 0);
+            const totalDisks = assets.reduce((sum, a) => sum + (a.disk_count || 0), 0);
+            const multiDiskVms = assets.filter(a => a.disk_count > 1).length;
+            const zombieCount = assets.filter(a => a.is_zombie).length;
+            const techDebtCount = zombieCount + multiDiskVms;
+
+            document.getElementById('totalVms').textContent = formatNumber(totalVms);
+            document.getElementById('totalVcpus').textContent = formatNumber(totalVcpus);
+            document.getElementById('totalDisks').textContent = formatNumber(totalDisks);
+
+            // RAM display
+            const totalRamTb = totalRamGb / 1024;
+            if (totalRamTb >= 1) {
+                document.getElementById('totalRam').textContent = totalRamTb.toFixed(2);
+                document.getElementById('totalRamUnit').textContent = 'TB';
+            } else {
+                document.getElementById('totalRam').textContent = formatNumber(Math.round(totalRamGb));
+                document.getElementById('totalRamUnit').textContent = 'GB';
+            }
+
+            // Storage display
+            const totalStorageTb = totalStorageGb / 1024;
+            if (totalStorageTb >= 1) {
+                document.getElementById('totalStorage').textContent = totalStorageTb.toFixed(2);
+                document.getElementById('totalStorageUnit').textContent = 'TB';
+            } else {
+                document.getElementById('totalStorage').textContent = formatNumber(Math.round(totalStorageGb));
+                document.getElementById('totalStorageUnit').textContent = 'GB';
+            }
+        }
+
+        async function refreshData(forceRefresh = false) {
+            const refreshBtn = document.getElementById('refreshBtn');
+            refreshBtn.disabled = true;
+            refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...';
+
+            document.getElementById('loadingState').style.display = 'flex';
+            document.getElementById('errorState').style.display = 'none';
+            document.getElementById('tableContainer').style.display = 'none';
+            document.getElementById('pagination').style.display = 'none';
+
+            try {
+                if (forceRefresh) {
+                    await fetch('/api/inventory/cache/clear', { method: 'POST' });
+                }
+
+                const response = await fetch('/api/inventory/data');
+                const data = await response.json();
+
+                if (data.error) throw new Error(data.error);
+
+                allAssets = data.assets || [];
+                summaryData = data.summary;
+
+                updateSummaryStats(data.summary);
+                updateCacheStatus(data._cache);
+
+                document.getElementById('exportBtn').disabled = false;
+                document.getElementById('copyTableBtn').disabled = false;
+
+                filterAssets();
+
+                if (data._cache) checkCacheAge(data._cache);
+
+                document.getElementById('loadingState').style.display = 'none';
+                document.getElementById('tableContainer').style.display = 'block';
+
+            } catch (error) {
+                console.error('Error fetching inventory:', error);
+                document.getElementById('loadingState').style.display = 'none';
+                document.getElementById('errorState').style.display = 'block';
+                document.getElementById('errorMessage').textContent = error.message;
+            } finally {
+                refreshBtn.disabled = false;
+                refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Refresh';
+            }
+        }
+
+        function updateSummaryStats(summary) {
+            if (!summary) return;
+
+            document.getElementById('totalVms').textContent = formatNumber(summary.total_vms);
+            document.getElementById('totalVcpus').textContent = formatNumber(summary.total_vcpus);
+            document.getElementById('totalDisks').textContent = formatNumber(summary.total_disks);
+
+            // RAM
+            if (summary.total_ram_tb >= 1) {
+                document.getElementById('totalRam').textContent = summary.total_ram_tb.toFixed(2);
+                document.getElementById('totalRamUnit').textContent = 'TB';
+            } else {
+                document.getElementById('totalRam').textContent = formatNumber(Math.round(summary.total_ram_gb));
+                document.getElementById('totalRamUnit').textContent = 'GB';
+            }
+
+            // Storage
+            if (summary.total_storage_tb >= 1) {
+                document.getElementById('totalStorage').textContent = summary.total_storage_tb.toFixed(2);
+                document.getElementById('totalStorageUnit').textContent = 'TB';
+            } else {
+                document.getElementById('totalStorage').textContent = formatNumber(Math.round(summary.total_storage_gb));
+                document.getElementById('totalStorageUnit').textContent = 'GB';
+            }
+
+            // Filter pill counts
+            document.getElementById('totalCountPill').textContent = formatNumber(summary.total_vms);
+            document.getElementById('vmwareCount').textContent = formatNumber(summary.vmware_count);
+            document.getElementById('awsCount').textContent = formatNumber(summary.aws_count);
+        }
+
+        function filterAssets() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const sourceFilter = document.getElementById('sourceFilter').value;
+            const archFilter = document.getElementById('archFilter').value;
+            const diskFilter = document.getElementById('diskFilter').value;
+            const intelFilter = document.getElementById('intelFilter').value;
+
+            filteredAssets = allAssets.filter(asset => {
+                const matchesSearch = !searchTerm ||
+                    asset.hostname.toLowerCase().includes(searchTerm) ||
+                    asset.os_type.toLowerCase().includes(searchTerm) ||
+                    (asset.primary_ip && asset.primary_ip.includes(searchTerm)) ||
+                    (asset.instance_type && asset.instance_type.toLowerCase().includes(searchTerm));
+
+                let matchesSource = true;
+                if (sourceFilter) {
+                    if (sourceFilter === 'Other') {
+                        matchesSource = asset.source_type !== 'VMware' && asset.source_type !== 'AWS';
+                    } else {
+                        matchesSource = asset.source_type === sourceFilter;
+                    }
+                }
+
+                let matchesArch = true;
+                if (archFilter) matchesArch = asset.architecture === archFilter;
+
+                let matchesDisk = true;
+                if (diskFilter === 'single') matchesDisk = asset.disk_count === 1;
+                else if (diskFilter === 'multi') matchesDisk = asset.disk_count > 1;
+
+                let matchesIntel = true;
+                if (intelFilter === 'idle') matchesIntel = asset.is_zombie === true;
+                else if (intelFilter === 'license') matchesIntel = asset.has_license_opportunity === true;
+
+                return matchesSearch && matchesSource && matchesArch && matchesDisk && matchesIntel;
+            });
+
+            sortAssets();
+            currentPage = 1;
+            renderTable();
+            updatePagination();
+        }
+
+        function sortAssets() {
+            filteredAssets.sort((a, b) => {
+                let aVal = a[sortColumn];
+                let bVal = b[sortColumn];
+                if (aVal == null) aVal = '';
+                if (bVal == null) bVal = '';
+
+                if (typeof aVal === 'number' && typeof bVal === 'number') {
+                    return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+                }
+
+                aVal = String(aVal).toLowerCase();
+                bVal = String(bVal).toLowerCase();
+                if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+                if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+
+        function sortTable(column) {
+            if (sortColumn === column) {
+                sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortColumn = column;
+                sortDirection = 'asc';
+            }
+
+            document.querySelectorAll('.table th').forEach(th => {
+                th.classList.remove('sorted');
+                const icon = th.querySelector('.sort-icon');
+                if (icon) icon.className = 'fas fa-sort sort-icon';
+            });
+
+            const th = document.querySelector(`.table th[data-sort="${column}"]`);
+            if (th) {
+                th.classList.add('sorted');
+                th.querySelector('.sort-icon').className = `fas fa-sort-${sortDirection === 'asc' ? 'up' : 'down'} sort-icon`;
+            }
+
+            sortAssets();
+            renderTable();
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('assetsTableBody');
+            const emptyState = document.getElementById('emptyState');
+
+            if (filteredAssets.length === 0) {
+                tbody.innerHTML = '';
+                emptyState.style.display = 'block';
+                document.getElementById('assetCount').textContent = '0 assets';
+                return;
+            }
+
+            emptyState.style.display = 'none';
+
+            const start = (currentPage - 1) * pageSize;
+            const end = Math.min(start + pageSize, filteredAssets.length);
+            const pageAssets = filteredAssets.slice(start, end);
+
+            tbody.innerHTML = pageAssets.map(asset => {
+                const powerClass = asset.power_state && asset.power_state.toLowerCase().includes('on') ? 'on' :
+                                  asset.power_state && asset.power_state.toLowerCase().includes('off') ? 'off' : 'unknown';
+
+                const isMultiDisk = asset.disk_count > 1;
+                const diskCellClass = isMultiDisk ? 'disk-count-cell multi-disk' : 'disk-count-cell';
+                const diskIcon = isMultiDisk ? '<i class="fas fa-exclamation-triangle disk-icon" title="Multiple disks"></i>' : '';
+
+                const lookupIndicator = asset.specs_from_lookup ?
+                    '<i class="fas fa-info-circle lookup-indicator" title="Specs from instance type lookup"></i>' : '';
+
+                // Intelligence flags
+                let intelFlags = '';
+                if (asset.is_zombie) {
+                    intelFlags += '<span class="intel-flag idle"><i class="fas fa-moon"></i> Zombie</span>';
+                }
+                if (asset.has_license_opportunity) {
+                    const licenseIcon = asset.license_type === 'Windows' ? 'fab fa-windows' : 'fas fa-database';
+                    intelFlags += `<span class="intel-flag license"><i class="${licenseIcon}"></i> ${asset.license_type}</span>`;
+                }
+                if (isMultiDisk) {
+                    intelFlags += '<span class="intel-flag multi-disk"><i class="fas fa-layer-group"></i> Multi-Disk</span>';
+                }
+
+                // Source badge
+                const sourceType = asset.source_type || 'Unknown';
+                const sourceClass = sourceType.toLowerCase() === 'vmware' ? 'vmware' :
+                                   sourceType.toLowerCase() === 'aws' ? 'aws' : 'other';
+                const sourceIcon = sourceType.toLowerCase() === 'aws' ? 'fab fa-aws' : 'fas fa-cloud';
+
+                // Architecture badge
+                const arch = asset.architecture || 'Unknown';
+                const archClass = arch.toLowerCase().includes('arm') ? 'arm64' :
+                                 arch.toLowerCase().includes('x86') ? 'x86_64' : 'unknown';
+
+                // Instance type display
+                const displayType = getDisplayInstanceType(asset);
+
+                return `
+                    <tr>
+                        <td class="hostname">${escapeHtml(asset.hostname)}</td>
+                        <td><span class="source-badge ${sourceClass}"><i class="${sourceIcon}"></i> ${escapeHtml(sourceType)}</span></td>
+                        <td class="instance-type-cell">${escapeHtml(displayType)}</td>
+                        <td><span class="arch-badge ${archClass}">${escapeHtml(arch)}</span></td>
+                        <td class="numeric">${asset.vcpu_count}${lookupIndicator}</td>
+                        <td class="numeric">${asset.memory_gb.toFixed(1)}</td>
+                        <td class="numeric">${asset.storage_gb > 0 ? asset.storage_gb.toFixed(0) : '-'}</td>
+                        <td class="${diskCellClass}">${asset.disk_count}${diskIcon}</td>
+                        <td>${escapeHtml(truncate(asset.os_type, 22))}</td>
+                        <td><span class="power-state ${powerClass}"><span class="dot"></span> ${escapeHtml(truncate(asset.power_state || 'Unknown', 10))}</span></td>
+                        <td><div class="intelligence-flags">${intelFlags || '<span style="color:#ccc">-</span>'}</div></td>
+                    </tr>
+                `;
+            }).join('');
+
+            document.getElementById('assetCount').textContent = `${filteredAssets.length} asset${filteredAssets.length !== 1 ? 's' : ''}`;
+        }
+
+        // T-Shirt sizing for VMware
+        function getDisplayInstanceType(asset) {
+            if (asset.instance_type && asset.instance_type !== 'N/A' && asset.instance_type.trim() !== '') {
+                return asset.instance_type;
+            }
+            if (asset.source_type === 'VMware') {
+                const vcpus = asset.vcpu_count || 0;
+                const ramGb = asset.memory_gb || 0;
+                if (vcpus < 2) return 'General (Small)';
+                else if (vcpus >= 8 || ramGb >= 32) return 'Memory Opt (Large)';
+                else return 'General (Medium)';
+            }
+            return 'Unknown';
+        }
+
+        function updatePagination() {
+            const pagination = document.getElementById('pagination');
+            if (filteredAssets.length === 0) {
+                pagination.style.display = 'none';
+                return;
+            }
+            pagination.style.display = 'flex';
+            const totalPages = Math.ceil(filteredAssets.length / pageSize);
+            const start = (currentPage - 1) * pageSize + 1;
+            const end = Math.min(currentPage * pageSize, filteredAssets.length);
+
+            document.getElementById('showingStart').textContent = start;
+            document.getElementById('showingEnd').textContent = end;
+            document.getElementById('totalFiltered').textContent = filteredAssets.length;
+            document.getElementById('prevBtn').disabled = currentPage === 1;
+            document.getElementById('nextBtn').disabled = currentPage === totalPages;
+        }
+
+        function prevPage() {
+            if (currentPage > 1) { currentPage--; renderTable(); updatePagination(); }
+        }
+
+        function nextPage() {
+            const totalPages = Math.ceil(filteredAssets.length / pageSize);
+            if (currentPage < totalPages) { currentPage++; renderTable(); updatePagination(); }
+        }
+
+        // Export
+        function exportCSV() { window.location.href = '/api/inventory/export/csv'; }
+
+        // Copy Table to Clipboard
+        function copyTableToClipboard() {
+            if (filteredAssets.length === 0) return;
+
+            const headers = ['Hostname', 'Source', 'Instance Type', 'Arch', 'vCPUs', 'RAM (GB)', 'Storage (GB)', 'Disks', 'OS', 'State', 'Flags'];
+            const rows = filteredAssets.map(asset => {
+                const flags = [];
+                if (asset.is_zombie) flags.push('Zombie');
+                if (asset.has_license_opportunity) flags.push(asset.license_type);
+                if (asset.disk_count > 1) flags.push('Multi-Disk');
+
+                return [
+                    asset.hostname,
+                    asset.source_type || '',
+                    getDisplayInstanceType(asset),
+                    asset.architecture || '',
+                    asset.vcpu_count,
+                    asset.memory_gb.toFixed(1),
+                    asset.storage_gb > 0 ? asset.storage_gb.toFixed(0) : '',
+                    asset.disk_count,
+                    asset.os_type || '',
+                    asset.power_state || '',
+                    flags.join(', ')
+                ].join('\t');
+            });
+
+            const text = headers.join('\t') + '\n' + rows.join('\n');
+
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = document.getElementById('copyTableBtn');
+                btn.classList.add('copied');
+                btn.innerHTML = '<i class="fas fa-check"></i> Copied';
+                setTimeout(() => {
+                    btn.classList.remove('copied');
+                    btn.innerHTML = '<i class="fas fa-clipboard"></i> Copy';
+                }, 2000);
+
+                showToast({ type: 'success', title: 'Copied', message: `${filteredAssets.length} rows copied to clipboard`, duration: 3000 });
+            }).catch(err => {
+                console.error('Copy failed:', err);
+                showToast({ type: 'error', title: 'Copy Failed', message: 'Unable to access clipboard', duration: 3000 });
+            });
+        }
+
+        // Utilities
+        function formatNumber(num) {
+            return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function truncate(text, maxLength) {
+            if (!text) return '';
+            if (text.length <= maxLength) return text;
+            return text.substring(0, maxLength) + '...';
+        }
+
+        // Cache Status
+        let hasAutoRefreshed = false;
+
+        function updateCacheStatus(cacheInfo) {
+            const cacheDot = document.getElementById('cacheDot');
+            const cacheTime = document.getElementById('cacheTime');
+
+            if (!cacheInfo) {
+                cacheTime.textContent = 'Loading...';
+                cacheDot.className = 'cache-dot refreshing';
+                return;
+            }
+
+            if (cacheInfo.cached_at) {
+                const cachedDate = new Date(cacheInfo.cached_at);
+                const timeStr = cachedDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                cacheTime.textContent = cacheInfo.cache_age_human || timeStr;
+            }
+
+            const ageSeconds = cacheInfo.cache_age_seconds || 0;
+            if (cacheInfo.from_cache === false || ageSeconds < 60) {
+                cacheDot.className = 'cache-dot refreshing';
+            } else if (ageSeconds < 300) {
+                cacheDot.className = 'cache-dot';
+            } else {
+                cacheDot.className = 'cache-dot stale';
+            }
+        }
+
+        function checkCacheAge(cacheInfo) {
+            if (cacheInfo && cacheInfo.cache_age_seconds > 86400 && !hasAutoRefreshed) {
+                hasAutoRefreshed = true;
+                refreshData(true);
+            }
+        }
+
+        function showToast({ type = 'info', title, message, duration = 0 }) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+
+            const iconMap = { 'info': 'fa-sync-alt', 'success': 'fa-check-circle', 'error': 'fa-exclamation-circle' };
+
+            toast.innerHTML = `
+                <i class="toast-icon fas ${iconMap[type] || 'fa-info-circle'}"></i>
+                <div class="toast-content">
+                    <div class="toast-title">${title}</div>
+                    ${message ? `<div class="toast-message">${message}</div>` : ''}
+                </div>
+                <button class="toast-close" onclick="this.closest('.toast').remove();">&times;</button>
+            `;
+
+            container.appendChild(toast);
+
+            if (duration > 0) {
+                setTimeout(() => {
+                    toast.style.animation = 'slideOut 0.3s ease forwards';
+                    setTimeout(() => toast.remove(), 300);
+                }, duration);
+            }
+        }
+    </script>
+
+    <div class="toast-container" id="toastContainer"></div>
+</body>
+</html>

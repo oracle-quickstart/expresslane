@@ -1,0 +1,1198 @@
+<!-- Copyright (c) 2024, 2025, 2026, Oracle and/or its affiliates.
+     Licensed under the Universal Permissive License v1.0 as shown at
+     https://oss.oracle.com/licenses/upl/ -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ExpressLane | OCM</title>
+    <link href="{{ url_for('static', filename='fontawesome/css/all.min.css') }}" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Oracle Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            background: #f5f3ef;
+            color: #161513;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        /* Top Navigation Bar - inherits from _navbar.html */
+
+        .oracle-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-right: 24px;
+        }
+
+        .oracle-logo svg {
+            width: 32px;
+            height: 32px;
+        }
+
+        .oracle-logo span {
+            color: #fff;
+            font-size: 16px;
+            font-weight: 400;
+        }
+
+        .search-bar {
+            flex: 1;
+            max-width: 600px;
+            position: relative;
+        }
+
+        .search-bar input {
+            width: 100%;
+            padding: 8px 36px 8px 12px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 4px;
+            color: #fff;
+            font-size: 14px;
+        }
+
+        .search-bar input::placeholder {
+            color: rgba(255,255,255,0.6);
+        }
+
+        .region-selector {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #fff;
+            padding: 6px 12px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 240px;
+            background: #fff;
+            border-right: 1px solid #e9e8e6;
+            height: calc(100vh - 48px);
+            position: fixed;
+            overflow-y: auto;
+        }
+
+        .sidebar-header {
+            padding: 16px 16px 8px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #6b6969;
+            letter-spacing: 0.5px;
+        }
+
+        .sidebar-item {
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+            color: #161513;
+            text-decoration: none;
+        }
+
+        .sidebar-item:hover {
+            background: #f7f8fa;
+        }
+
+        .sidebar-item.active {
+            background: #e6f0ff;
+            border-left: 3px solid #0572ce;
+            padding-left: 13px;
+        }
+
+        .sidebar-item i {
+            width: 16px;
+            text-align: center;
+            color: #6b6969;
+        }
+
+        .sidebar-item.active i {
+            color: #0572ce;
+        }
+
+        /* Main Content */
+        .main-content {
+            padding: 24px;
+            min-height: calc(100vh - 48px);
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Breadcrumb */
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 24px;
+            font-size: 14px;
+            color: #6b6969;
+        }
+
+        .breadcrumb a {
+            color: #0572ce;
+            text-decoration: none;
+        }
+
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+
+        /* Page Header */
+        .page-header {
+            margin-bottom: 24px;
+        }
+
+        .page-title {
+            font-size: 28px;
+            font-weight: 300;
+            color: #161513;
+            margin-bottom: 8px;
+        }
+
+        .page-subtitle {
+            font-size: 14px;
+            color: #6b6969;
+            line-height: 1.5;
+        }
+
+        /* Cards */
+        .card {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            margin-bottom: 24px;
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 16px 24px;
+            border-bottom: 1px solid #e9e8e6;
+            background: #fafafa;
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #161513;
+        }
+
+        .card-body {
+            padding: 24px;
+        }
+
+        /* Two-column layout */
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        /* Form Elements */
+        .form-group {
+            margin-bottom: 24px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #161513;
+        }
+
+        .form-select {
+            width: 100%;
+            padding: 10px 36px 10px 12px;
+            border: 1px solid #d9d7d5;
+            border-radius: 4px;
+            font-size: 14px;
+            background: #fff;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b6969' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 12px center;
+            background-repeat: no-repeat;
+            background-size: 16px;
+            transition: border-color 0.2s;
+        }
+
+        .form-select:hover {
+            border-color: #b3b1af;
+        }
+
+        .form-select:focus {
+            outline: none;
+            border-color: #0572ce;
+            box-shadow: 0 0 0 1px #0572ce;
+        }
+
+        .form-select:disabled {
+            background-color: #f7f8fa;
+            cursor: not-allowed;
+        }
+
+        /* VM Grid */
+        .vm-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 16px;
+            margin-top: 16px;
+        }
+
+        .vm-card {
+            border: 2px solid #e9e8e6;
+            border-radius: 8px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: #fff;
+        }
+
+        .vm-card:hover {
+            border-color: #b3b1af;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .vm-card.selected {
+            border-color: #0572ce;
+            background: #f0f7ff;
+        }
+
+        .vm-card-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .vm-checkbox {
+            width: 18px;
+            height: 18px;
+            margin-top: 2px;
+            cursor: pointer;
+            accent-color: #0572ce;
+        }
+
+        .vm-info {
+            flex: 1;
+        }
+
+        .vm-name {
+            font-size: 15px;
+            font-weight: 600;
+            color: #161513;
+            margin-bottom: 4px;
+        }
+
+        .vm-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            font-size: 13px;
+            color: #6b6969;
+        }
+
+        .vm-meta-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .vm-meta-item i {
+            font-size: 12px;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 10px 24px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: #0572ce;
+            color: #fff;
+            border-color: #0572ce;
+        }
+
+        .btn-primary:hover {
+            background: #0460b1;
+            border-color: #0460b1;
+        }
+
+        .btn-primary:disabled {
+            background: #d9d7d5;
+            border-color: #d9d7d5;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: #fff;
+            color: #161513;
+            border-color: #d9d7d5;
+        }
+
+        .btn-secondary:hover {
+            background: #f7f8fa;
+        }
+
+        /* Table */
+        .table-container {
+            overflow-x: auto;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        .table th {
+            background: #fafafa;
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 12px;
+            font-weight: 600;
+            color: #6b6969;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid #e9e8e6;
+            white-space: nowrap;
+        }
+
+        .table td {
+            padding: 16px;
+            border-bottom: 1px solid #f1f0ee;
+            font-size: 14px;
+            color: #161513;
+        }
+
+        .table tbody tr:hover {
+            background: #f7f8fa;
+        }
+
+        .table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* .empty-state and .cache-hint moved to static/css/base.css in
+           Sprint 2 (2026-04-11). Removed from this file to eliminate
+           the Sprint 1 duplication. */
+
+        /* Migration History table removed from this page (2026-04-12).
+           Dashboard now owns the full history with search/filter/sort.
+           This page is purely the "New Migration" creation workflow. */
+
+        /* Sortable column headers — KEPT for potential future use but
+           currently not used on this page. */
+        .table th[data-sort] {
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+        }
+        .table th[data-sort]:hover { background: #f3f4f6; }
+        .table th[data-sort] .sort-icon {
+            margin-left: 6px;
+            font-size: 10px;
+            opacity: 0.35;
+        }
+        .table th[data-sort].sorted .sort-icon { opacity: 1; color: #0572ce; }
+
+        /* Status Pills */
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: capitalize;
+        }
+
+        .status-running {
+            background: #dbeafe;
+            color: #0572ce;
+        }
+
+        .status-pending {
+            background: #fef5e6;
+            color: #8e6f1f;
+        }
+
+        .status-completed {
+            background: #e6f7ed;
+            color: #0e6333;
+        }
+
+        .status-failed {
+            background: #feebeb;
+            color: #8e1f1f;
+        }
+
+        .status-in-sync {
+            background: #e1f0fa;
+            color: #0572ce;
+        }
+
+        .status-cutting-over {
+            background: #f3e8ff;
+            color: #7c3aed;
+        }
+
+        .status-cancelled {
+            background: #f5f5f5;
+            color: #6b6969;
+        }
+
+        .status-test-deploying {
+            background: #fff3e0;
+            color: #e65100;
+        }
+
+        .status-test-deployed {
+            background: #e0f2f1;
+            color: #00695c;
+        }
+
+        .status-test-cleanup {
+            background: #fff3e0;
+            color: #e65100;
+        }
+
+        .status-test-deploy-failed {
+            background: #fce4ec;
+            color: #c62828;
+        }
+
+        .status-test-cleanup-failed {
+            background: #fce4ec;
+            color: #c62828;
+        }
+
+        /* Action Links */
+        .action-link {
+            color: #0572ce;
+            text-decoration: none;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .action-link:hover {
+            text-decoration: underline;
+        }
+
+        /* Alert Messages */
+        .alert {
+            padding: 16px;
+            border-radius: 4px;
+            margin-bottom: 24px;
+            display: none;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .alert-success {
+            background: #e6f7ed;
+            border: 1px solid #b8e5ca;
+            color: #0e6333;
+        }
+
+        .alert-error {
+            background: #feebeb;
+            border: 1px solid #f5c2c2;
+            color: #8e1f1f;
+        }
+
+        .alert-warning {
+            background: #fef5e6;
+            border: 1px solid #f5e0b8;
+            color: #8e6f1f;
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            display: none;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .selection-counter {
+            display: inline-block;
+            background: #0572ce;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        /* VM Card States */
+        .vm-card:hover {
+            border-color: #0572ce !important;
+            box-shadow: 0 2px 8px rgba(5, 114, 206, 0.1);
+        }
+
+        .vm-card.selected {
+            border-color: #0572ce !important;
+            background: #f0f7ff !important;
+            box-shadow: 0 0 0 2px rgba(5, 114, 206, 0.2);
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .two-column {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    {% include '_navbar.html' %}
+
+    <!-- Main Content -->
+    <div class="main-content">
+<!-- Page Header -->
+        <div class="page-header">
+            <h1 class="page-title"><strong>ExpressLane:</strong> Oracle Cloud Migrations</h1>
+            <p class="page-subtitle">
+                Accelerate VM migrations from VMware and AWS by streamlining the Oracle Cloud Migrations (OCM)
+                workflow—from discovery through deployment—in a single, intuitive interface.
+            </p>
+        </div>
+
+        <!-- Alert Messages -->
+        <div id="alert-success" class="alert alert-success">
+            <i class="fas fa-check-circle"></i>
+            <span id="success-message">Migration started successfully!</span>
+        </div>
+        <div id="alert-error" class="alert alert-error">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span id="error-message">An error occurred</span>
+        </div>
+        {% if not vms %}
+        <div class="alert alert-warning" style="display: flex;">
+            <i class="fas fa-info-circle"></i>
+            <span>No VMs found in Cloud Bridge inventory. Please ensure your asset source is properly configured and VMs are discovered.</span>
+        </div>
+        {% endif %}
+
+        <!-- Start New Migration Card -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">Start New OCM Migration</h2>
+            </div>
+            <div class="card-body">
+                <form id="migration-form">
+                    <!-- Destination Configuration -->
+                    <h3 style="font-size: 15px; font-weight: 600; margin-bottom: 16px; color: #161513;">
+                        <i class="fas fa-map-marker-alt" style="color: #0572ce;"></i>
+                        Destination Configuration <span style="font-weight: 400; color: #6b6969;">(Configure where to migrate VMs)</span>
+                    </h3>
+                    <div class="two-column" style="gap: 16px;">
+                        <div class="form-group" style="margin-bottom: 12px;">
+                            <label class="form-label" for="destination_compartment" style="margin-bottom: 4px;">
+                                Target Compartment
+                            </label>
+                            <select id="destination_compartment" class="form-select" required>
+                                <option value="">Loading compartments...</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 12px;">
+                            <label class="form-label" for="destination_vcn" style="margin-bottom: 4px;">
+                                Target VCN
+                            </label>
+                            <select id="destination_vcn" class="form-select" required disabled>
+                                <option value="">Select compartment first...</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 12px;">
+                            <label class="form-label" for="destination_subnet" style="margin-bottom: 4px;">
+                                Target Subnet
+                            </label>
+                            <select id="destination_subnet" class="form-select" required disabled>
+                                <option value="">Select VCN first...</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <hr style="margin: 24px 0; border: none; border-top: 1px solid #e9e8e6;">
+
+                    <!-- VM Selection -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                        <h3 style="font-size: 15px; font-weight: 600; margin: 0; color: #161513;">
+                            <i class="fas fa-server" style="color: #0572ce;"></i>
+                            Select VMs to Migrate
+                            <span id="selection-count" class="selection-counter" style="display: none;">0 selected</span>
+                        </h3>
+                        <div style="display: flex; gap: 8px;">
+                            <button type="button" id="refresh-inventory-btn" onclick="refreshInventory()" style="padding: 4px 12px; font-size: 12px; color: #0572ce; background: white; border: 1px solid #0572ce; border-radius: 4px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#f0f7ff'" onmouseout="this.style.background='white'">
+                                <i class="fas fa-sync-alt" id="refresh-icon"></i> Refresh Inventory
+                            </button>
+                            <button type="button" onclick="clearSelection()" style="padding: 4px 12px; font-size: 12px; color: #6b6969; background: white; border: 1px solid #d6d5d3; border-radius: 4px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='white'">
+                                <i class="fas fa-times"></i> Clear Selection
+                            </button>
+                        </div>
+                    </div>
+
+                    {% if vms %}
+                    <!-- Search/Filter Box -->
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <div style="position: relative;">
+                            <i class="fas fa-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #6b6969;"></i>
+                            <input type="text" id="vm-search" class="form-select" placeholder="Search VMs by name..."
+                                   style="padding-left: 36px;" oninput="filterVMs()">
+                        </div>
+                        <div style="margin-top: 8px; font-size: 12px; color: #6b6969;">
+                            <span id="vm-count-display">{{ vms|length }} VMs available</span>
+                        </div>
+                    </div>
+
+                    <!-- VM Cards Grid -->
+                    <div id="vm-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; max-height: 300px; overflow-y: auto; padding: 4px; border: 1px solid #e9e8e6; border-radius: 4px;">
+                        {% for vm in vms %}
+                        <div class="vm-card"
+                             data-vm-id="{{ vm.id }}"
+                             data-vm-name="{{ vm.name }}"
+                             data-source-type="{{ vm.source_type }}"
+                             onclick="toggleVMSelectionFromCard(this, event)"
+                             style="border: 1px solid #d6d5d3; border-radius: 4px; padding: 12px; cursor: pointer; transition: all 0.2s; background: white;">
+                            <div style="display: flex; align-items: start; gap: 12px;">
+                                <input type="checkbox" class="vm-checkbox" style="margin-top: 2px; cursor: pointer;">
+                                <div style="flex: 1; min-width: 0;">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                                        {% if vm.source_type == 'AWS' %}
+                                        <i class="fab fa-aws" style="color: #FF9900; font-size: 16px;"></i>
+                                        {% elif vm.source_type == 'VMware' %}
+                                        <img src="{{ url_for('static', filename='vmware-icon.svg') }}" style="width: 16px; height: 16px;" alt="VMware">
+                                        {% else %}
+                                        <i class="fas fa-cloud" style="color: #6b6969; font-size: 14px;"></i>
+                                        {% endif %}
+                                        <span style="font-weight: 600; font-size: 13px; color: #161513; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                            {{ vm.name }}
+                                        </span>
+                                    </div>
+                                    <div style="font-size: 11px; color: #6b6969;">
+                                        <div>{{ vm.asset_type }}</div>
+                                        <div style="margin-top: 4px;">
+                                            <span style="background: #e9e8e6; padding: 2px 6px; border-radius: 3px;">{{ vm.lifecycle_state }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div style="padding: 24px; text-align: center; color: #6b6969;">
+                        <i class="fas fa-inbox" style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;"></i>
+                        <p>No VMs available for migration</p>
+                    </div>
+                    {% endif %}
+
+                    <div style="margin-top: 24px; display: flex; gap: 12px;">
+                        <button type="button" class="btn btn-primary" id="advanced-btn" onclick="openAdvancedConfig()" disabled>
+                            <i class="fas fa-play"></i>
+                            Plan Migration
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        {# Migration History table removed from this page (2026-04-12).
+           Dashboard now owns the full history with search/filter/sort/clickable rows.
+           This page is purely the "New Migration" creation workflow. #}
+    </div>
+
+    <script>
+        // HTML escaping to prevent XSS
+        function escapeHtml(str) {
+            if (str == null) return '';
+            return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+        }
+
+        // Load compartments on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadCompartments();
+        });
+
+        // Load compartments (with retry for post-wizard API key propagation)
+        async function loadCompartments(retryCount) {
+            retryCount = retryCount || 0;
+            const maxRetries = 8;
+            const select = document.getElementById('destination_compartment');
+            try {
+                const resp = await fetch('/api/ocm/compartments');
+                if (!resp.ok && retryCount < maxRetries) {
+                    select.innerHTML = '<option value="">Loading compartments...</option>';
+                    await new Promise(r => setTimeout(r, 5000));
+                    return loadCompartments(retryCount + 1);
+                }
+                const data = await resp.json();
+                if ((!data.compartments || data.compartments.length === 0) && retryCount < maxRetries) {
+                    select.innerHTML = '<option value="">Loading compartments...</option>';
+                    await new Promise(r => setTimeout(r, 5000));
+                    return loadCompartments(retryCount + 1);
+                }
+                select.innerHTML = '<option value="">Select a compartment...</option>';
+                if (data.compartments) {
+                    data.compartments.forEach(comp => {
+                        const option = document.createElement('option');
+                        option.value = comp.id;
+                        option.textContent = comp.name;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                if (retryCount < maxRetries) {
+                    await new Promise(r => setTimeout(r, 5000));
+                    return loadCompartments(retryCount + 1);
+                }
+                console.error('Error loading compartments:', error);
+                select.innerHTML = '<option value="">Error loading compartments</option>';
+            }
+        }
+
+        // When compartment changes, load VCNs
+        document.getElementById('destination_compartment').addEventListener('change', function() {
+            const compartmentId = this.value;
+            const vcnSelect = document.getElementById('destination_vcn');
+            const subnetSelect = document.getElementById('destination_subnet');
+
+            if (!compartmentId) {
+                vcnSelect.disabled = true;
+                vcnSelect.innerHTML = '<option value="">Select compartment first...</option>';
+                subnetSelect.disabled = true;
+                subnetSelect.innerHTML = '<option value="">Select VCN first...</option>';
+                return;
+            }
+
+            vcnSelect.disabled = true;
+            vcnSelect.innerHTML = '<option value="">Loading VCNs...</option>';
+            subnetSelect.disabled = true;
+            subnetSelect.innerHTML = '<option value="">Select VCN first...</option>';
+
+            fetchWithRetry(`/api/ocm/vcns?compartment_id=${encodeURIComponent(compartmentId)}`)
+                .then(response => response.json())
+                .then(data => {
+                    vcnSelect.innerHTML = '<option value="">Select a VCN...</option>';
+
+                    if (data.vcns) {
+                        data.vcns.forEach(vcn => {
+                            const option = document.createElement('option');
+                            option.value = vcn.id;
+                            option.textContent = vcn.name;
+                            vcnSelect.appendChild(option);
+                        });
+                        vcnSelect.disabled = false;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading VCNs:', error);
+                    vcnSelect.innerHTML = '<option value="">Error loading VCNs</option>';
+                });
+        });
+
+        // When VCN changes, load subnets
+        document.getElementById('destination_vcn').addEventListener('change', function() {
+            const vcnId = this.value;
+            const compartmentId = document.getElementById('destination_compartment').value;
+            const subnetSelect = document.getElementById('destination_subnet');
+
+            if (!vcnId) {
+                subnetSelect.disabled = true;
+                subnetSelect.innerHTML = '<option value="">Select VCN first...</option>';
+                return;
+            }
+
+            subnetSelect.disabled = true;
+            subnetSelect.innerHTML = '<option value="">Loading subnets...</option>';
+
+            fetchWithRetry(`/api/ocm/subnets?compartment_id=${encodeURIComponent(compartmentId)}&vcn_id=${encodeURIComponent(vcnId)}`)
+                .then(response => response.json())
+                .then(data => {
+                    subnetSelect.innerHTML = '<option value="">Select a subnet...</option>';
+
+                    if (data.subnets) {
+                        data.subnets.forEach(subnet => {
+                            const option = document.createElement('option');
+                            option.value = subnet.id;
+                            option.textContent = subnet.name;
+                            subnetSelect.appendChild(option);
+                        });
+                        subnetSelect.disabled = false;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading subnets:', error);
+                    subnetSelect.innerHTML = '<option value="">Error loading subnets</option>';
+                });
+        });
+
+        let selectedVMs = [];
+
+        // VM Selection - from clicking anywhere on the card
+        function toggleVMSelectionFromCard(card, event) {
+            // If the click was on the checkbox itself, let it handle naturally
+            if (event.target.classList.contains('vm-checkbox')) {
+                return;
+            }
+
+            // Otherwise, toggle the checkbox
+            const checkbox = card.querySelector('.vm-checkbox');
+            checkbox.checked = !checkbox.checked;
+            updateVMSelection(card, checkbox.checked);
+        }
+
+        // Update the VM selection state
+        function updateVMSelection(card, isChecked) {
+            const vmId = card.dataset.vmId;
+
+            if (isChecked) {
+                card.classList.add('selected');
+                // Check if VM is not already in the array before adding
+                const exists = selectedVMs.some(vm => vm.inventory_asset_id === vmId);
+                if (!exists) {
+                    selectedVMs.push({
+                        inventory_asset_id: vmId,
+                        vm_name: card.dataset.vmName,
+                        source_type: card.dataset.sourceType
+                    });
+                }
+            } else {
+                card.classList.remove('selected');
+                selectedVMs = selectedVMs.filter(vm => vm.inventory_asset_id !== vmId);
+            }
+
+            updateSelectionCounter();
+        }
+
+        // Attach change event listeners to all checkboxes after page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.vm-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    const card = this.closest('.vm-card');
+                    updateVMSelection(card, this.checked);
+                });
+            });
+        });
+
+        function updateSelectionCounter() {
+            const counter = document.getElementById('selection-count');
+            const advancedBtn = document.getElementById('advanced-btn');
+
+            if (selectedVMs.length > 0) {
+                counter.textContent = `${selectedVMs.length} selected`;
+                counter.style.display = 'inline-block';
+                advancedBtn.disabled = false;
+            } else {
+                counter.style.display = 'none';
+                advancedBtn.disabled = true;
+            }
+        }
+
+        function clearSelection() {
+            selectedVMs = [];
+            document.querySelectorAll('.vm-card').forEach(card => {
+                card.classList.remove('selected');
+                card.querySelector('.vm-checkbox').checked = false;
+            });
+            updateSelectionCounter();
+        }
+
+        function openAdvancedConfig() {
+            if (selectedVMs.length === 0) {
+                showAlert('error', 'Please select at least one VM');
+                return;
+            }
+
+            // Get destination configuration
+            const destCompartment = document.getElementById('destination_compartment').value;
+            const destVcn = document.getElementById('destination_vcn').value;
+            const destSubnet = document.getElementById('destination_subnet').value;
+
+            if (!destCompartment || !destVcn || !destSubnet) {
+                showAlert('error', 'Please select destination compartment, VCN, and subnet first');
+                return;
+            }
+
+            // Store selected VMs and destination in sessionStorage
+            sessionStorage.setItem('selectedVMs', JSON.stringify(selectedVMs));
+            sessionStorage.setItem('destinationConfig', JSON.stringify({
+                compartment: destCompartment,
+                vcn: destVcn,
+                subnet: destSubnet
+            }));
+
+            // Navigate to advanced configuration page
+            window.location.href = '/ocm/plan';
+        }
+
+        // Search/Filter VMs
+        function filterVMs() {
+            const searchTerm = document.getElementById('vm-search').value.toLowerCase();
+            const cards = document.querySelectorAll('.vm-card');
+            let visibleCount = 0;
+
+            cards.forEach(card => {
+                const vmName = card.dataset.vmName.toLowerCase();
+                const sourceType = card.dataset.sourceType.toLowerCase();
+
+                if (vmName.includes(searchTerm) || sourceType.includes(searchTerm)) {
+                    card.style.display = '';
+                    visibleCount++;
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+
+            // Update count display
+            const totalCount = cards.length;
+            const countDisplay = document.getElementById('vm-count-display');
+            if (searchTerm) {
+                countDisplay.textContent = `Showing ${visibleCount} of ${totalCount} VMs`;
+            } else {
+                countDisplay.textContent = `${totalCount} VMs available`;
+            }
+        }
+
+        // Form submission (via Plan Migration button)
+        document.getElementById('migration-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            openAdvancedConfig();
+        });
+
+        // Alert helper
+        function showAlert(type, message) {
+            const alertSuccess = document.getElementById('alert-success');
+            const alertError = document.getElementById('alert-error');
+
+            if (type === 'success') {
+                document.getElementById('success-message').textContent = message;
+                alertSuccess.style.display = 'flex';
+                alertError.style.display = 'none';
+                setTimeout(() => { alertSuccess.style.display = 'none'; }, 5000);
+            } else {
+                document.getElementById('error-message').textContent = message;
+                alertError.style.display = 'flex';
+                alertSuccess.style.display = 'none';
+                setTimeout(() => { alertError.style.display = 'none'; }, 10000);
+            }
+        }
+
+        // Migration History table JS removed (2026-04-12). Dashboard owns the
+        // full history now. Everything below (triggerCutover, auto-refresh,
+        // filter/sort/render pipeline, DOMContentLoaded for pills/search/sort)
+        // was deleted. Keeping refreshInventory + showToast which are still
+        // used by the VM picker on this page.
+
+        // DELETED: triggerCutover, listLastRefreshed, listHasActive,
+        // listRefreshTimer, markListFreshness, updateListFreshnessText,
+        // scheduleNextListRefresh, allMigrations, activeStatusFilter,
+        // searchQuery, sortColumn, sortDirection, migrationMatchesSearch,
+        // migrationMatchesStatusFilter, compareMigrations, updatePillCounts,
+        // displayFilteredMigrations, renderMigrationRows, updateTable,
+        // DOMContentLoaded handler for pills/search/sort/URL-filter,
+        // setTimeout(updateTable, 2000).
+
+        // --- Refresh Inventory (kept — used by the VM picker) ---
+        async function _placeholder_deleted_block() {} // keeps line numbering stable for grep
+        // ACTUAL CODE CONTINUES BELOW:
+
+        // Refresh Inventory function with status polling
+        let refreshPollingInterval = null;
+
+        function refreshInventory() {
+            const btn = document.getElementById('refresh-inventory-btn');
+            const icon = document.getElementById('refresh-icon');
+
+            // Get asset source ID from config (passed from backend)
+            const assetSourceId = '{{ config.get("OCM_ASSET_SOURCE_OCID", "") }}';
+
+            if (!assetSourceId) {
+                showAlert('error', 'No Asset Source configured. Please configure OCM_ASSET_SOURCE_OCID in Settings.');
+                return;
+            }
+
+            // Disable button and show spinning icon
+            btn.disabled = true;
+            btn.style.cursor = 'not-allowed';
+            btn.style.opacity = '0.6';
+            icon.classList.add('fa-spin');
+
+            fetch('/api/ocm/refresh-asset-source', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    asset_source_id: assetSourceId
+                })
+            })
+            .then(response => response.json().then(data => ({ status: response.status, data })))
+            .then(({ status, data }) => {
+                if (status === 200 && data.success && data.work_request_id) {
+                    showToast('Discovery started. Polling for status...', 'info');
+                    // Start polling for status
+                    startStatusPolling(data.work_request_id);
+                } else if (status === 409) {
+                    showToast('A refresh is already in progress. Please wait.', 'warning');
+                    resetRefreshButton();
+                } else {
+                    showToast(data.error || 'Failed to start refresh', 'error');
+                    resetRefreshButton();
+                }
+            })
+            .catch(error => {
+                showToast('Network error: ' + error.message, 'error');
+                resetRefreshButton();
+            });
+        }
+
+        function startStatusPolling(workRequestId) {
+            // Clear any existing polling
+            if (refreshPollingInterval) {
+                clearInterval(refreshPollingInterval);
+            }
+
+            let pollCount = 0;
+            const maxPolls = 120; // Max 6 minutes (120 * 3 seconds)
+
+            refreshPollingInterval = setInterval(() => {
+                pollCount++;
+
+                // Safety limit
+                if (pollCount > maxPolls) {
+                    clearInterval(refreshPollingInterval);
+                    refreshPollingInterval = null;
+                    // Terminal state: replace the in-progress toast and let it auto-dismiss.
+                    window.toast.warn('Discovery is taking longer than expected. Check OCI Console for status.', { key: INVENTORY_REFRESH_TOAST_KEY });
+                    resetRefreshButton();
+                    return;
+                }
+
+                fetch(`/api/ocm/work-request-status/${workRequestId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.error) {
+                            clearInterval(refreshPollingInterval);
+                            refreshPollingInterval = null;
+                            window.toast.error(data.error, { key: INVENTORY_REFRESH_TOAST_KEY });
+                            resetRefreshButton();
+                            return;
+                        }
+
+                        const status = data.status;
+                        const percent = data.percent_complete || 0;
+
+                        if (status === 'IN_PROGRESS' || status === 'ACCEPTED') {
+                            // Progress update — stays in place via the shared key.
+                            updateToast(`Discovery running... ${percent}% complete`, 'info');
+                        } else if (status === 'SUCCEEDED') {
+                            clearInterval(refreshPollingInterval);
+                            refreshPollingInterval = null;
+                            window.toast.success('Discovery complete! Reloading VM list...', { key: INVENTORY_REFRESH_TOAST_KEY });
+                            // Reload the page to get updated VM list
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 1500);
+                        } else if (status === 'FAILED' || status === 'CANCELED') {
+                            clearInterval(refreshPollingInterval);
+                            refreshPollingInterval = null;
+                            window.toast.error(`Discovery ${status.toLowerCase()}. Check OCI Console for details.`, { key: INVENTORY_REFRESH_TOAST_KEY });
+                            resetRefreshButton();
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error polling status:', error);
+                        // Don't stop polling on network errors, just log
+                    });
+            }, 3000); // Poll every 3 seconds
+        }
+
+        function resetRefreshButton() {
+            const btn = document.getElementById('refresh-inventory-btn');
+            const icon = document.getElementById('refresh-icon');
+
+            icon.classList.remove('fa-spin');
+            btn.disabled = false;
+            btn.style.cursor = 'pointer';
+            btn.style.opacity = '1';
+        }
+
+        // Sprint 3 #5 follow-up (2026-04-11) — in-place progress toast.
+        // Uses window.toast's new `key` option so repeated polling updates
+        // share a single toast instead of stacking. The same key is threaded
+        // through terminal success/error calls below so the final state
+        // replaces the in-progress toast cleanly.
+        const INVENTORY_REFRESH_TOAST_KEY = 'inventory-refresh';
+
+        function updateToast(message, type = 'info') {
+            const kind = type === 'warning' ? 'warn' : (type || 'info');
+            const fn = window.toast && window.toast[kind];
+            if (fn) {
+                // Progress updates: sticky so polling updates don't time out
+                // mid-run. The terminal call will clear sticky and let the
+                // toast auto-dismiss.
+                fn(message, { key: INVENTORY_REFRESH_TOAST_KEY, sticky: true });
+            }
+        }
+
+        // Toast notification — Sprint 3 Item #5 (2026-04-11).
+        // This used to be a standalone ~90-line implementation. Now it's a
+        // 3-line shim that delegates to the shared window.toast system in
+        // static/js/base.js. All existing call sites (showToast('msg', 'type'))
+        // continue to work unchanged; only the 'warning' → 'warn' alias is
+        // translated for the new API.
+        function showToast(message, type) {
+            const kind = type === 'warning' ? 'warn' : (type || 'info');
+            const fn = window.toast && window.toast[kind];
+            if (fn) return fn(message);
+            // Fallback if base.js somehow didn't load
+            alert(message);
+        }
+    </script>
+
+    {% include '_footer.html' %}
+</body>
+</html>

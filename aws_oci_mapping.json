@@ -1,0 +1,172 @@
+{
+  "meta": {
+    "version": "1.0",
+    "default_oci_shape": "VM.Standard.E6.Flex",
+    "currency": "USD",
+    "notes": "OCI Flex mapping assumes 1 OCPU = 2 vCPUs. Savings are estimates based on on-demand list prices."
+  },
+  "aws_mappings": {
+    "t3.micro": {
+      "aws_vcpu": 2,
+      "aws_ram_gb": 1,
+      "aws_hourly_est": 0.0104,
+      "oci_rec_shape": "VM.Standard.E6.Flex",
+      "oci_ocpu": 1,
+      "oci_ram_gb": 1,
+      "oci_hourly_est": 0.005,
+      "perf_note": "Significant savings moving from burstable to dedicated silicon."
+    },
+    "t3.small": {
+      "aws_vcpu": 2,
+      "aws_ram_gb": 2,
+      "aws_hourly_est": 0.0208,
+      "oci_rec_shape": "VM.Standard.E6.Flex",
+      "oci_ocpu": 1,
+      "oci_ram_gb": 2,
+      "oci_hourly_est": 0.007,
+      "perf_note": "Match performance at ~60% cost reduction."
+    },
+    "t3.medium": {
+      "aws_vcpu": 2,
+      "aws_ram_gb": 4,
+      "aws_hourly_est": 0.0416,
+      "oci_rec_shape": "VM.Standard.E6.Flex",
+      "oci_ocpu": 1,
+      "oci_ram_gb": 4,
+      "oci_hourly_est": 0.010,
+      "perf_note": "Ideal candidate for OCI Flex."
+    },
+    "t3.large": {
+      "aws_vcpu": 2,
+      "aws_ram_gb": 8,
+      "aws_hourly_est": 0.0832,
+      "oci_rec_shape": "VM.Standard.E6.Flex",
+      "oci_ocpu": 1,
+      "oci_ram_gb": 8,
+      "oci_hourly_est": 0.018,
+      "perf_note": "Excellent savings on memory-heavy burstable."
+    },
+    "t3.xlarge": {
+      "aws_vcpu": 4,
+      "aws_ram_gb": 16,
+      "aws_hourly_est": 0.1664,
+      "oci_rec_shape": "VM.Standard.E6.Flex",
+      "oci_ocpu": 2,
+      "oci_ram_gb": 16,
+      "oci_hourly_est": 0.036,
+      "perf_note": "Move from burstable to dedicated compute."
+    },
+    "m5.large": {
+      "aws_vcpu": 2,
+      "aws_ram_gb": 8,
+      "aws_hourly_est": 0.096,
+      "oci_rec_shape": "VM.Standard.E6.Flex",
+      "oci_ocpu": 1,
+      "oci_ram_gb": 8,
+      "oci_hourly_est": 0.018,
+      "perf_note": "Direct replacement with higher memory bandwidth."
+    },
+    "m5.xlarge": {
+      "aws_vcpu": 4,
+      "aws_ram_gb": 16,
+      "aws_hourly_est": 0.192,
+      "oci_rec_shape": "VM.Standard.E6.Flex",
+      "oci_ocpu": 2,
+      "oci_ram_gb": 16,
+      "oci_hourly_est": 0.036,
+      "perf_note": "High savings potential."
+    },
+    "m5.2xlarge": {
+      "aws_vcpu": 8,
+      "aws_ram_gb": 32,
+      "aws_hourly_est": 0.384,
+      "oci_rec_shape": "VM.Standard.E6.Flex",
+      "oci_ocpu": 4,
+      "oci_ram_gb": 32,
+      "oci_hourly_est": 0.072,
+      "perf_note": "Major cost reduction opportunity."
+    },
+    "m5.4xlarge": {
+      "aws_vcpu": 16,
+      "aws_ram_gb": 64,
+      "aws_hourly_est": 0.768,
+      "oci_rec_shape": "VM.Standard.E6.Flex",
+      "oci_ocpu": 8,
+      "oci_ram_gb": 64,
+      "oci_hourly_est": 0.144,
+      "perf_note": "Enterprise workload with significant savings."
+    },
+    "c5.large": {
+      "aws_vcpu": 2,
+      "aws_ram_gb": 4,
+      "aws_hourly_est": 0.085,
+      "oci_rec_shape": "VM.Standard.E6.Flex",
+      "oci_ocpu": 1,
+      "oci_ram_gb": 4,
+      "oci_hourly_est": 0.010,
+      "perf_note": "Compute optimized workload mapped to standard flex."
+    },
+    "c5.xlarge": {
+      "aws_vcpu": 4,
+      "aws_ram_gb": 8,
+      "aws_hourly_est": 0.170,
+      "oci_rec_shape": "VM.Standard.E6.Flex",
+      "oci_ocpu": 2,
+      "oci_ram_gb": 8,
+      "oci_hourly_est": 0.024,
+      "perf_note": "Compute optimized to general purpose flex."
+    },
+    "c5.2xlarge": {
+      "aws_vcpu": 8,
+      "aws_ram_gb": 16,
+      "aws_hourly_est": 0.340,
+      "oci_rec_shape": "VM.Standard.E6.Flex",
+      "oci_ocpu": 4,
+      "oci_ram_gb": 16,
+      "oci_hourly_est": 0.048,
+      "perf_note": "Strong compute workload candidate."
+    },
+    "r5.large": {
+      "aws_vcpu": 2,
+      "aws_ram_gb": 16,
+      "aws_hourly_est": 0.126,
+      "oci_rec_shape": "VM.Standard.E6.Flex",
+      "oci_ocpu": 1,
+      "oci_ram_gb": 16,
+      "oci_hourly_est": 0.028,
+      "perf_note": "Memory optimized - OCI Flex creates huge savings here."
+    },
+    "r5.xlarge": {
+      "aws_vcpu": 4,
+      "aws_ram_gb": 32,
+      "aws_hourly_est": 0.252,
+      "oci_rec_shape": "VM.Standard.E6.Flex",
+      "oci_ocpu": 2,
+      "oci_ram_gb": 32,
+      "oci_hourly_est": 0.056,
+      "perf_note": "Memory optimized with excellent OCI pricing."
+    },
+    "r5.2xlarge": {
+      "aws_vcpu": 8,
+      "aws_ram_gb": 64,
+      "aws_hourly_est": 0.504,
+      "oci_rec_shape": "VM.Standard.E6.Flex",
+      "oci_ocpu": 4,
+      "oci_ram_gb": 64,
+      "oci_hourly_est": 0.112,
+      "perf_note": "High memory workload - massive OCI advantage."
+    }
+  },
+  "generic_logic": {
+    "description": "Logic for VMware or Unknown Assets where we calculate purely on vCPU/RAM count",
+    "baseline_shape": "VM.Standard.E6.Flex",
+    "ocpu_ratio": 0.5,
+    "min_ocpu": 1,
+    "pricing_model": {
+      "base_ocpu_hourly": 0.012,
+      "base_ram_gb_hourly": 0.0015,
+      "vmware_est_hourly_per_vcpu": 0.05,
+      "vmware_est_hourly_per_gb_ram": 0.006
+    }
+  }
+}

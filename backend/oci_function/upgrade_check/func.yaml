@@ -1,0 +1,14 @@
+schema_version: 20180708
+name: upgrade-check
+version: 0.0.1
+runtime: python
+build_image: fnproject/python:3.11-dev
+run_image: fnproject/python:3.11
+entrypoint: /python/bin/fdk /function/func.py handler
+memory: 128
+timeout: 30
+config:
+  META_BUCKET: expresslane-meta
+  META_OBJECT: latest.json
+  META_TTL_SECONDS: "300"
+  GEOIP_DB_PATH: /function/GeoLite2-Country.mmdb

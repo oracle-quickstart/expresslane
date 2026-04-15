@@ -1,0 +1,12 @@
+# Paths excluded from `git archive` when building release zips.
+#
+# See: https://git-scm.com/docs/gitattributes#_creating_an_archive
+#
+# Everything not listed here is included in the release zip. Runtime assets
+# (templates/, static/, deploy/, screenshots/) must stay in the archive so
+# the extracted install tree works standalone.
+
+tests/               export-ignore
+.github/             export-ignore
+.gitattributes       export-ignore
+.gitignore           export-ignore

@@ -1,0 +1,38 @@
+# Secrets and configuration
+config.json
+.env
+.env.*
+!.env.example
+
+# Database
+instance/
+*.db
+
+# Cache
+cache/
+
+# Certificates and TLS
+certs/
+*.pem
+*.key
+*.crt
+*.cert
+*.p12
+*.pfx
+*.jks
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+venv/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
