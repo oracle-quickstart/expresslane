@@ -11,6 +11,7 @@ services:
       - /home/opc/.oci:/home/expresslane/.oci:ro,z
     environment:
       - SECURE_COOKIES=${SECURE_COOKIES:-false}
+      - EXPRESSLANE_STATE_DIR=/app/cache/.expresslane
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/login')"]
       interval: 30s

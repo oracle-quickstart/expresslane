@@ -1,5 +1,5 @@
 {
-  "OCM_REGION": "",
+  "OCM_REGION": "us-ashburn-1",
   "OCM_TARGET_COMPARTMENT_OCID": "",
   "OCM_TARGET_VCN_OCID": "",
   "OCM_TARGET_SUBNET_OCID": "",

@@ -4,6 +4,17 @@ All notable changes to ExpressLane are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] — 2026-04-15
+
+### Added
+
+- **Upgrade check feature** — a lightweight, opt-out background check that asks the ExpressLane release endpoint whether a newer version is available and shows a dismissible banner in the navbar when one is. Sends only the installed version and the first 8 characters of a locally-generated install UUID; no host, IP, OCID, or user info ever leaves the host. Disable with `EXPRESSLANE_NO_UPGRADE_CHECK=true`. The full client implementation is a single stdlib-only Python file, [`upgrade_check.py`](upgrade_check.py). See the README's "Upgrade Check" section for the exact request format and opt-out instructions.
+
+### Fixed
+
+- **Upgrade check: deduplicate background calls across gunicorn workers.** Each worker was running its own background check on its first request, so an N-worker deployment fired N events per install on first start. Added a non-blocking `fcntl.flock` so only one worker per install actually makes the network call; losing workers wait briefly for the cache file to land and read from there, so all workers end up with the same banner state but the backend sees one call per install.
+- **nginx config: bind expresslane.conf to IPv6 too.** The deploy.sh-installed `nginx-expresslane.conf` only had `listen 80 default_server;` (IPv4). OL9's stock `/etc/nginx/nginx.conf` ships with a separate `server { listen 80; listen [::]:80; }` block that serves files from `/usr/share/nginx/html`, so IPv6 requests (including `curl localhost` on most modern systems, which prefers `::1`) bypassed ExpressLane entirely and hit the OL9 default file-server. Added `listen [::]:80 default_server;` to both `nginx-expresslane.conf` and `nginx-expresslane-ssl.conf` (and the matching `[::]:443` for the TLS variant) so ExpressLane handles both stacks. Browser traffic over the public IPv4 was unaffected; this only bit operators testing locally.
+
 ## [1.2.0] — 2026-04-14
 
 **First public release to [`oracle-quickstart/expresslane`](https://github.com/oracle-quickstart/expresslane).**

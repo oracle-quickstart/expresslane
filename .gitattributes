@@ -3,10 +3,19 @@
 # See: https://git-scm.com/docs/gitattributes#_creating_an_archive
 #
 # Everything not listed here is included in the release zip. Runtime assets
-# (templates/, static/, deploy/, screenshots/) must stay in the archive so
-# the extracted install tree works standalone.
+# (templates/, static/, deploy/) must stay in the archive so the extracted
+# install tree works standalone. Docs and assets that only render on the
+# GitHub repo page — screenshots, CONTRIBUTING, RELEASING — are excluded
+# from the zip because nobody extracts a tarball to look at them.
 
+# dev-only / repo-maintenance
 tests/               export-ignore
 .github/             export-ignore
 .gitattributes       export-ignore
 .gitignore           export-ignore
+
+# docs that only render on github.com and are not useful from an
+# extracted install tree
+screenshots/         export-ignore
+CONTRIBUTING.md      export-ignore
+RELEASING.md         export-ignore

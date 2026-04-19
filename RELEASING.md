@@ -43,23 +43,23 @@ Tag names use the `vX.Y.Z` convention — the leading `v` matters because `gh re
 Use `git archive` to produce a clean zip from the tag. The `.gitattributes` file in the repo root marks dev-only paths (`tests/`, `.github/`, `.gitattributes`, `.gitignore`) with `export-ignore` so they don't end up in the archive:
 
 ```bash
-git archive --format=zip --prefix=vm_migrator_oci/ -o vm_migrator_oci.zip v1.3.0
+git archive --format=zip --prefix=expresslane/ -o expresslane.zip v1.3.0
 ```
 
-The `--prefix=vm_migrator_oci/` is critical — it means users who `unzip vm_migrator_oci.zip` get a `vm_migrator_oci/` directory, matching what the install docs assume.
+The `--prefix=expresslane/` is critical — it means users who `unzip expresslane.zip` get a `expresslane/` directory, matching what the install docs assume.
 
 Verify the zip looks right before publishing:
 
 ```bash
-unzip -l vm_migrator_oci.zip | head -30
+unzip -l expresslane.zip | head -30
 ```
 
-You should see files under `vm_migrator_oci/` (app.py, Dockerfile, docker-compose.yml, deploy/, templates/, static/, screenshots/, etc.) and **no** `tests/`, `.github/`, or `.git*` entries.
+You should see files under `expresslane/` (app.py, Dockerfile, docker-compose.yml, deploy/, templates/, static/, screenshots/, etc.) and **no** `tests/`, `.github/`, or `.git*` entries.
 
 ### 5. Publish the GitHub release
 
 ```bash
-gh release create v1.3.0 vm_migrator_oci.zip \
+gh release create v1.3.0 expresslane.zip \
     --title "ExpressLane v1.3.0" \
     --notes-file CHANGELOG.md
 ```
@@ -67,7 +67,7 @@ gh release create v1.3.0 vm_migrator_oci.zip \
 If you want a draft first (to review the release page before making it public):
 
 ```bash
-gh release create v1.3.0 vm_migrator_oci.zip \
+gh release create v1.3.0 expresslane.zip \
     --title "ExpressLane v1.3.0" \
     --notes-file CHANGELOG.md \
     --draft
@@ -82,13 +82,13 @@ Then review at `https://github.com/oracle-quickstart/expresslane/releases` and c
 The `curl` commands in `README.md` and `UPDATING.md` point at the **latest-release** URL pattern, which auto-follows to the most recent published release:
 
 ```
-https://github.com/oracle-quickstart/expresslane/releases/latest/download/vm_migrator_oci.zip
+https://github.com/oracle-quickstart/expresslane/releases/latest/download/expresslane.zip
 ```
 
 After publishing, confirm it resolves:
 
 ```bash
-curl -LI https://github.com/oracle-quickstart/expresslane/releases/latest/download/vm_migrator_oci.zip \
+curl -LI https://github.com/oracle-quickstart/expresslane/releases/latest/download/expresslane.zip \
     | grep -iE "^(location|HTTP)"
 ```
 
@@ -97,7 +97,7 @@ You should see the redirect chain ending at the new version's zip asset. If it s
 ### 7. Clean up local artifacts
 
 ```bash
-rm vm_migrator_oci.zip
+rm expresslane.zip
 ```
 
 The release zip lives on GitHub now; you don't need a local copy.
@@ -128,7 +128,7 @@ gh release edit v1.3.0 --prerelease
 Users who need a specific version (for reproducibility or compliance) can pin to the versioned URL instead of the latest URL:
 
 ```
-https://github.com/oracle-quickstart/expresslane/releases/download/v1.3.0/vm_migrator_oci.zip
+https://github.com/oracle-quickstart/expresslane/releases/download/v1.3.0/expresslane.zip
 ```
 
 Every published release is available at this URL pattern indefinitely, so old versions don't rot.
@@ -152,11 +152,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build release zip
-        run: git archive --format=zip --prefix=vm_migrator_oci/ -o vm_migrator_oci.zip ${{ github.ref_name }}
+        run: git archive --format=zip --prefix=expresslane/ -o expresslane.zip ${{ github.ref_name }}
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          files: vm_migrator_oci.zip
+          files: expresslane.zip
           body_path: CHANGELOG.md
 ```
 

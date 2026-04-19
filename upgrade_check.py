@@ -22,6 +22,7 @@ The full implementation is stdlib Python (no `requests` dependency) and is
 designed to be easy to audit. See README.md for the user-facing description.
 """
 
+import fcntl
 import json
 import logging
 import os
@@ -40,9 +41,8 @@ logger = logging.getLogger(__name__)
 
 # ─── Constants (everything an auditor needs in one place) ──────────────────
 
-# Production API Gateway URL — the OCI Function backend behind this endpoint
-# lives in the ExpressLane compartment (us-ashburn-1) and is sourced from
-# backend/oci_function/upgrade_check/. Overridable at runtime via
+# Production API Gateway URL — points at an OCI Function maintained by
+# the ExpressLane team. Overridable at runtime via
 # EXPRESSLANE_UPGRADE_CHECK_URL (useful for staging / tests).
 DEFAULT_UPGRADE_CHECK_URL = (
     "https://kpbcyxd4d23n4ww5eqqyuszebi.apigateway.us-ashburn-1.oci.customer-oci.com"
@@ -59,8 +59,10 @@ DEFAULT_STATE_DIR = Path.home() / ".expresslane"
 CACHE_BASE_SECONDS = 24 * 60 * 60           # 24 hours
 CACHE_JITTER_SECONDS = 6 * 60 * 60          # +  random 0-6 hours
 
-# Network budget for the upgrade check. We never retry.
-HTTP_TIMEOUT_SECONDS = 3.0
+# Network budget for the upgrade check. We never retry. The check runs in a
+# background daemon thread so the user never waits on this. 60s accommodates
+# OCI Function cold starts (which can take 30-50s after overnight eviction).
+HTTP_TIMEOUT_SECONDS = 60.0
 MAX_RESPONSE_BYTES = 16 * 1024              # responses are tiny; cap anyway
 
 # Only show the upgrade banner when both the installed AND the advertised
@@ -225,6 +227,58 @@ def _save_cached_result(payload):
         logger.debug("upgrade_check: cache write failed: %s", e)
 
 
+# How long a "loser" worker (one that lost the file-lock race) is willing to
+# wait for the winning worker to populate the cache file before giving up.
+_WORKER_WAIT_SECONDS = 8.0
+_WORKER_POLL_INTERVAL = 0.25
+
+
+def _try_acquire_worker_lock():
+    """Acquire a non-blocking exclusive file lock so only ONE process per
+    install actually fires the network call.
+
+    Returns the open file handle on success (caller MUST close it to release
+    the lock). Returns None if another process already holds the lock or if
+    the state directory is not writable.
+
+    Why this exists: gunicorn runs N workers, each running the upgrade-check
+    on its first request. Without coordination, every worker independently
+    calls the backend on first install — N events for one install. With this
+    lock, only the winning worker calls; the losers wait briefly for the cache
+    file to land and read from there, so all workers end up with the same
+    `_STATUS` but the backend sees one call per install.
+    """
+    d = _ensure_state_dir()
+    if d is None:
+        return None
+    lock_path = d / "upgrade_check.lock"
+    try:
+        fh = open(lock_path, "w")
+        fcntl.flock(fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return fh
+    except (OSError, BlockingIOError):
+        try:
+            fh.close()
+        except Exception:
+            pass
+        return None
+
+
+def _wait_for_cache(timeout_seconds):
+    """Poll the cache file until it appears or the timeout elapses.
+
+    Used by losing workers: after another worker's check populates the cache,
+    every other worker reads from it on the next poll iteration.
+    """
+    deadline = time.time() + timeout_seconds
+    while time.time() < deadline:
+        cached = _load_cached_result()
+        if cached is not None:
+            return cached
+        time.sleep(_WORKER_POLL_INTERVAL)
+    return None
+
+
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
     """Refuses to follow any 3xx response.
 
@@ -292,29 +346,57 @@ def _run_check(current_version):
     if is_disabled():
         return
 
+    # Fast path: cache is fresh, every worker reads it locally.
     cached = _load_cached_result()
     if cached is not None:
         _apply_result(current_version, cached, from_cache=True)
         return
 
-    prefix = _get_install_id_prefix()
-    if not prefix:
+    # Cross-worker coordination: only one process makes the network call.
+    lock_fh = _try_acquire_worker_lock()
+    if lock_fh is None:
+        # Another worker is doing the check right now. Wait briefly for it
+        # to populate the cache, then read it locally. If the winner times
+        # out, we silently give up (no banner) — matches the rest of the
+        # silent-failure contract.
+        cached = _wait_for_cache(_WORKER_WAIT_SECONDS)
+        if cached is not None:
+            _apply_result(current_version, cached, from_cache=True)
+        else:
+            logger.debug("upgrade_check: lost lock race and cache wait timed out")
         return
 
-    base = _endpoint_url()
-    query = urllib.parse.urlencode({
-        "version": current_version,
-        "install_id": prefix,
-    })
-    sep = "&" if "?" in base else "?"
-    url = f"{base}{sep}{query}"
+    try:
+        # Re-check the cache after acquiring the lock — another worker may
+        # have finished between our first read and our lock acquisition.
+        cached = _load_cached_result()
+        if cached is not None:
+            _apply_result(current_version, cached, from_cache=True)
+            return
 
-    payload = _http_get_json(url)
-    if payload is None:
-        return
+        prefix = _get_install_id_prefix()
+        if not prefix:
+            return
 
-    _save_cached_result(payload)
-    _apply_result(current_version, payload, from_cache=False)
+        base = _endpoint_url()
+        query = urllib.parse.urlencode({
+            "version": current_version,
+            "install_id": prefix,
+        })
+        sep = "&" if "?" in base else "?"
+        url = f"{base}{sep}{query}"
+
+        payload = _http_get_json(url)
+        if payload is None:
+            return
+
+        _save_cached_result(payload)
+        _apply_result(current_version, payload, from_cache=False)
+    finally:
+        try:
+            lock_fh.close()  # releases the flock
+        except Exception:
+            pass
 
 
 def _apply_result(current_version, payload, *, from_cache):

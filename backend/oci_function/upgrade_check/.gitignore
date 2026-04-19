@@ -1,3 +1,0 @@
-# MaxMind GeoLite2 database — download at deploy time, never commit.
-GeoLite2-Country.mmdb
-*.mmdb

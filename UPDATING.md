@@ -26,8 +26,8 @@ sudo tar czf /home/opc/expresslane-backup-$(date +%F).tgz \
 
 ```bash
 tar czf ~/expresslane-backup-$(date +%F).tgz \
-    ~/vm_migrator_oci/config.json \
-    ~/vm_migrator_oci/instance/
+    ~/expresslane/config.json \
+    ~/expresslane/instance/
 ```
 
 ## Upgrading — Option 1: VM Manual Install
@@ -36,17 +36,17 @@ tar czf ~/expresslane-backup-$(date +%F).tgz \
    ```bash
    ssh opc@<PUBLIC_IP>
    cd ~
-   curl -LO https://github.com/oracle-quickstart/expresslane/releases/latest/download/vm_migrator_oci.zip
+   curl -LO https://github.com/oracle-quickstart/expresslane/releases/latest/download/expresslane.zip
    ```
 
-2. Unzip over the existing source directory. The installer rsyncs into `/opt/expresslane`, so the source tree in `~/vm_migrator_oci` is just the staging area:
+2. Unzip over the existing source directory. The installer rsyncs into `/opt/expresslane`, so the source tree in `~/expresslane` is just the staging area:
    ```bash
-   unzip -o vm_migrator_oci.zip
+   unzip -o expresslane.zip
    ```
 
 3. Re-run the installer. It detects the existing install and prints a version-upgrade line (for example `v1.1.0 -> v1.2.0`):
    ```bash
-   cd ~/vm_migrator_oci/deploy
+   cd ~/expresslane/deploy
    sudo bash deploy.sh
    ```
    `deploy.sh` excludes `config.json`, `instance/`, and `cache/` during the rsync, so your settings and migration database are preserved in place.
@@ -68,24 +68,24 @@ tar czf ~/expresslane-backup-$(date +%F).tgz \
 
 1. Stop the running stack. Container state is in bind mounts on the host, so `down` is safe — nothing is deleted:
    ```bash
-   cd ~/vm_migrator_oci
+   cd ~/expresslane
    sudo podman-compose down
    ```
 
 2. Download the new release zip on the instance:
    ```bash
    cd ~
-   curl -LO https://github.com/oracle-quickstart/expresslane/releases/latest/download/vm_migrator_oci.zip
+   curl -LO https://github.com/oracle-quickstart/expresslane/releases/latest/download/expresslane.zip
    ```
 
 3. Unzip **over** the existing source directory. The `-o` flag overwrites the application files, but the runtime files you created (`config.json`, `.env`, `instance/`, `cache/`, `certs/`) are not in the zip and will be left alone:
    ```bash
-   unzip -o vm_migrator_oci.zip
+   unzip -o expresslane.zip
    ```
 
 4. Rebuild the app image and bring the stack back up:
    ```bash
-   cd ~/vm_migrator_oci
+   cd ~/expresslane
    sudo podman-compose build
    sudo podman-compose up -d
    sudo podman ps
@@ -115,9 +115,9 @@ sudo systemctl restart expresslane
 
 **Podman Install rollback:**
 ```bash
-cd ~/vm_migrator_oci
+cd ~/expresslane
 sudo podman-compose down
-tar xzf ~/expresslane-backup-YYYY-MM-DD.tgz -C ~/vm_migrator_oci/
+tar xzf ~/expresslane-backup-YYYY-MM-DD.tgz -C ~/expresslane/
 sudo podman-compose up -d
 ```
 
@@ -130,7 +130,7 @@ Keep in mind that **schema migrations are not reversible**. In practice this is 
 Run the uninstaller script that ships with the release:
 
 ```bash
-cd ~/vm_migrator_oci/deploy
+cd ~/expresslane/deploy
 sudo bash uninstall.sh
 ```
 
@@ -154,14 +154,14 @@ sudo firewall-cmd --reload
 ### Podman Install
 
 ```bash
-cd ~/vm_migrator_oci
+cd ~/expresslane
 sudo podman-compose down
 sudo podman rmi -f \
-    localhost/vm_migrator_oci_app \
+    localhost/expresslane_app \
     docker.io/library/nginx:1.25-alpine \
     docker.io/library/python:3.9-slim
 cd ~
-rm -rf vm_migrator_oci vm_migrator_oci.zip
+rm -rf expresslane expresslane.zip
 ```
 
 To also remove Podman itself from the host:

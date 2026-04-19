@@ -1,4 +1,4 @@
-# ExpressLane — v1.2.0
+# ExpressLane — v1.2.1
 
 **The fast path inside Oracle.**
 
@@ -30,54 +30,6 @@ Under the hood, ExpressLane is a Flask application that calls the OCI SDK on you
 - **Two install paths** — a five-minute manual install on a VM, or a fully containerized Podman deployment on Oracle Linux 9.
 - **Runs on any OCI region** — region and compartment are chosen at setup time.
 - **UPL-1.0 licensed, Oracle-backed** — free to use, modify, and redistribute.
-
----
-
-## Upgrade Check
-
-ExpressLane includes a lightweight, fully open-source **upgrade check** that tells you when a newer release is available. When the app starts, a background thread asks the ExpressLane release endpoint for the latest version number; if yours is older, a dismissible banner appears at the top of every page with a link to the release notes. The check runs once per day (with jitter), never blocks the app, and silently does nothing on any network error.
-
-### Exactly what is sent
-
-Every call is a single HTTPS `GET` with two query parameters and nothing else:
-
-```
-GET https://<endpoint>/v1/check?version=1.2.0&install_id=a1b2c3d4
-```
-
-| Field        | Value                                                                                    |
-|--------------|------------------------------------------------------------------------------------------|
-| `version`    | Your installed ExpressLane version string, e.g. `1.2.0`.                                 |
-| `install_id` | The **first 8 characters** of a random UUID generated on first run and stored locally.  |
-
-**That's it.** No hostname, no IP, no OCIDs, no tenancy, no compartment, no resource details, no user name, no request body, no cookies. The check never follows HTTP redirects, times out after 3 seconds, and fails silently if the endpoint is unreachable.
-
-The `install_id` file lives at `~/.expresslane/install_id` (file mode `0600`, readable only by the ExpressLane process owner). You can delete it at any time; a new one will be generated on the next run.
-
-The full client implementation is a single file of stdlib Python: [`upgrade_check.py`](upgrade_check.py). It is ~250 lines and designed to be easy to audit.
-
-### Disable the upgrade check
-
-Set `EXPRESSLANE_NO_UPGRADE_CHECK=true` in the environment before ExpressLane starts. When opted out, **no files are written** under `~/.expresslane/`, **no network calls** are made, **no threads are spawned**, and the banner never renders.
-
-**Systemd (Option 1 — VM Manual Install):**
-
-```bash
-sudo systemctl edit expresslane.service
-# Add the following lines, then save and exit:
-#   [Service]
-#   Environment="EXPRESSLANE_NO_UPGRADE_CHECK=true"
-sudo systemctl restart expresslane.service
-```
-
-**Podman / docker-compose (Option 2 — Podman Install):**
-
-```bash
-echo 'EXPRESSLANE_NO_UPGRADE_CHECK=true' >> .env
-podman-compose up -d --force-recreate
-```
-
-You can verify the feature is off by checking that `~/.expresslane/install_id` does **not** exist after starting ExpressLane, and that the navbar shows no upgrade banner.
 
 ---
 
@@ -264,9 +216,9 @@ This is the fastest way to get ExpressLane running. Once the OCI setup above is 
 On the ExpressLane compute instance (SSH in as `opc` if you haven't already), download the release zip and run the installer:
 
 ```bash
-curl -LO https://github.com/oracle-quickstart/expresslane/releases/latest/download/vm_migrator_oci.zip
-unzip vm_migrator_oci.zip
-cd vm_migrator_oci/deploy
+curl -LO https://github.com/oracle-quickstart/expresslane/releases/latest/download/expresslane.zip
+unzip expresslane.zip
+cd expresslane/deploy
 ```
 
 You have two choices for how to run the installer:
@@ -336,80 +288,49 @@ To back up ExpressLane, copy `/opt/expresslane/config.json` and `/opt/expresslan
 
 This path runs ExpressLane as two containers (`expresslane-app` and `expresslane-nginx`) on a fresh Oracle Linux 9 instance using **Podman**, Oracle Linux's native container runtime. You get cleaner isolation, a built-in reverse proxy, and no host daemon to manage.
 
-**Why Podman instead of Docker?** Podman ships in the Oracle Linux AppStream repo, so no external `docker.com` repository is needed. It's daemonless (no `systemctl enable --now` step), requires no `docker` group membership (no `usermod` + relogin dance), and runs as root on-demand for the operations that need privileged ports. Anyone used to docker muscle memory can still type `docker ps` and it will transparently call podman via the `podman-docker` shim package.
-
-The steps below are what was tested end-to-end on a fresh Oracle Linux 9.7 OCI image. They assume you've already completed [OCI Setup](#oci-setup) above, so you have a running compute instance with the dynamic group and IAM policies in place.
-
-#### Step 1. Install Podman and podman-compose
-
-Podman itself comes straight from Oracle Linux's default repos. `podman-compose` is a Python tool that is not (yet) in the OL9 repos, so it is installed via `pip` — this is the one wart in an otherwise clean install path.
-
-```bash
-sudo dnf install -y podman podman-docker python3-pip
-sudo pip3 install podman-compose
-sudo ln -sf /usr/local/bin/podman-compose /usr/bin/podman-compose
-```
-
-- **`podman`** — the container engine.
-- **`podman-docker`** — ships a `docker` command that transparently calls podman, so every `docker ps` or `docker logs` in your muscle memory still works.
-- **`podman-compose`** — Python reimplementation of docker-compose v1 semantics; honors `services:`, `volumes:`, `depends_on: service_healthy`, and the `:z` SELinux bind-mount flag.
-- **The `ln -sf` symlink** — `pip3` installs `podman-compose` under `/usr/local/bin`, which is not on `sudo`'s default `secure_path`. Symlinking it into `/usr/bin` lets you run `sudo podman-compose` without typing the full path every time.
-
-#### Step 2. Download the Release and Prepare Runtime Files
+**One command, HTTP:**
 
 ```bash
 ssh opc@<public-ip>
-
-curl -LO https://github.com/oracle-quickstart/expresslane/releases/latest/download/vm_migrator_oci.zip
-unzip vm_migrator_oci.zip
-cd vm_migrator_oci
-
-# Seed config.json and the empty directories the compose file bind-mounts
-cp config.json.example config.json
-mkdir -p certs /home/opc/.oci
-
-# .env file pins the container user to your host UID/GID
-printf 'UID=%s\nGID=%s\n' "$(id -u)" "$(id -g)" > .env
+curl -LO https://github.com/oracle-quickstart/expresslane/releases/latest/download/expresslane.zip
+unzip expresslane.zip
+cd expresslane
+sudo bash deploy/podman-deploy.sh
 ```
 
-The bind mount for the (optional) OCI config file lives at `/home/opc/.oci:/home/expresslane/.oci:ro,z` in `docker-compose.yml`. The absolute path is deliberate so `sudo podman-compose` doesn't expand `~` against `$HOME=/root` and leave you with a broken mount. ExpressLane ignores an empty `/home/opc/.oci` directory and falls back to Instance Principals authentication, which is what you want on OCI anyway.
-
-#### Step 3. Build and Start the Stack
+**One command, HTTPS** (bring your own cert):
 
 ```bash
-cd ~/vm_migrator_oci
-
-sudo podman-compose build
-sudo podman-compose up -d
-sudo podman ps
+sudo bash deploy/podman-deploy.sh \
+    --fqdn expresslane.example.com \
+    --tls-cert /path/to/fullchain.pem \
+    --tls-key  /path/to/privkey.pem
 ```
 
-You should see two containers running:
+The installer checks for `podman` and `podman-compose` (installs them if missing), seeds `config.json` + `.env`, fixes runtime directory ownership, builds the image, starts the stack, waits for the healthcheck, and prints the URL to open in your browser. It is idempotent — re-run it to upgrade in place.
+
+You should finish looking at something like:
 
 ```
-CONTAINER ID  IMAGE                                 STATUS                   PORTS                                     NAMES
-...           localhost/vm_migrator_oci_app:latest  Up (healthy)             5000/tcp                                  expresslane-app
-...           docker.io/library/nginx:1.25-alpine   Up                       0.0.0.0:80->80/tcp, 0.0.0.0:443->443/tcp  expresslane-nginx
-```
+================================================
+  ExpressLane v1.2.1 — Installation Complete!
+================================================
 
-Smoke test from the instance:
+  ExpressLane app: RUNNING (healthy)
+  nginx:           RUNNING
 
-```bash
-curl -s -o /dev/null -w "HTTP %{http_code}\n" -L http://localhost/
-# Expected: HTTP 200
+  Internal:  http://10.0.0.87/
+  External:  http://<public-ip>/
+
+  Logs:      sudo podman logs -f expresslane-app
+  Restart:   sudo podman-compose restart app
+  Uninstall: sudo podman-compose down
+================================================
 ```
 
 Open `http://<public-ip>/` in a browser — it will redirect to the setup wizard.
 
-> **Why the `.env` file?** The `Dockerfile` creates a non-root `expresslane` user (uid 999) inside the image, but the bind-mounted `config.json`, `instance/`, and `cache/` on the host are owned by `opc` (uid 1000). The compose file declares `user: "${UID:-1000}:${GID:-1000}"` which reads those values from `.env` so the uids match. Without the `.env` file, the container will crash on startup with `PermissionError: [Errno 13] Permission denied: 'config.json'`.
-
-> **Why `:z` on every bind mount?** OL9 runs SELinux in enforcing mode. Host files carry `user_home_t` context, which container processes cannot read. The `:z` suffix on each bind mount tells podman (and docker) to relabel them to `container_file_t`. This is already set in the release `docker-compose.yml` — do not strip the `:z` suffixes if you edit it.
-
-> **About container healthchecks:** the healthcheck is defined at the compose level in `docker-compose.yml` rather than as a `HEALTHCHECK` line in the `Dockerfile`. This keeps builds clean under both `docker compose` and `podman-compose` — podman's OCI image format silently drops Dockerfile `HEALTHCHECK` directives, so putting it in the compose file means it's honored by both runtimes. You will see `Up (healthy)` in `podman ps` when it's working, which is what `depends_on: service_healthy` consumes.
-
-> **Security note:** ExpressLane's nginx container serves plain HTTP by default. For production, drop a TLS cert into `certs/`, render `deploy/nginx-docker-ssl.conf` with your FQDN, add `NGINX_CONF=./deploy/nginx-docker-ssl-live.conf` and `SECURE_COOKIES=true` to `.env`, and run `sudo podman-compose up -d` to recreate the stack.
-
-#### Day-Two Operations
+#### Common Commands
 
 ```bash
 # View live logs (Ctrl+C to exit)
@@ -429,10 +350,10 @@ sudo podman-compose up -d
 
 | Path                              | Contents                                         |
 |-----------------------------------|--------------------------------------------------|
-| `~/vm_migrator_oci/config.json`   | Setup wizard output — **back this up**           |
-| `~/vm_migrator_oci/instance/`     | SQLite DB of migration state — **back this up**  |
-| `~/vm_migrator_oci/cache/`        | Inventory cache (safe to delete)                 |
-| `~/vm_migrator_oci/certs/`        | TLS cert material (HTTPS opt-in)                 |
+| `~/expresslane/config.json`   | Setup wizard output — **back this up**           |
+| `~/expresslane/instance/`     | SQLite DB of migration state — **back this up**  |
+| `~/expresslane/cache/`        | Inventory cache (safe to delete)                 |
+| `~/expresslane/certs/`        | TLS cert material (HTTPS opt-in)                 |
 
 ---
 
@@ -828,6 +749,54 @@ From that page, the three sections you need for the VMware-side setup are:
 - **Agent Dependencies** — which hydration agents to install on Windows vs. Linux guests and how.
 
 Once the VMware asset source is created and has discovered at least one VM, ExpressLane will show those VMs alongside any AWS VMs in the same inventory.
+
+---
+
+## Appendix — Upgrade Check
+
+ExpressLane includes a lightweight, fully open-source **upgrade check** that tells you when a newer release is available. When the app starts, a background thread asks the ExpressLane release endpoint for the latest version number; if yours is older, a dismissible banner appears at the top of every page with a link to the release notes. The check runs once per day (with jitter), never blocks the app, and silently does nothing on any network error.
+
+### Exactly what is sent
+
+Every call is a single HTTPS `GET` with two query parameters and nothing else:
+
+```
+GET https://<endpoint>/v1/check?version=1.2.0&install_id=a1b2c3d4
+```
+
+| Field        | Value                                                                                    |
+|--------------|------------------------------------------------------------------------------------------|
+| `version`    | Your installed ExpressLane version string, e.g. `1.2.0`.                                 |
+| `install_id` | The **first 8 characters** of a random UUID generated on first run and stored locally.  |
+
+**That's it.** No hostname, no IP, no OCIDs, no tenancy, no compartment, no resource details, no user name, no request body, no cookies. The check never follows HTTP redirects, times out after 3 seconds, and fails silently if the endpoint is unreachable.
+
+The `install_id` file lives at `~/.expresslane/install_id` (file mode `0600`, readable only by the ExpressLane process owner). You can delete it at any time; a new one will be generated on the next run.
+
+The full client implementation is a single file of stdlib Python: [`upgrade_check.py`](upgrade_check.py). It is ~250 lines and designed to be easy to audit.
+
+### Disable the upgrade check
+
+Set `EXPRESSLANE_NO_UPGRADE_CHECK=true` in the environment before ExpressLane starts. When opted out, **no files are written** under `~/.expresslane/`, **no network calls** are made, **no threads are spawned**, and the banner never renders.
+
+**Systemd (Option 1 — VM Manual Install):**
+
+```bash
+sudo systemctl edit expresslane.service
+# Add the following lines, then save and exit:
+#   [Service]
+#   Environment="EXPRESSLANE_NO_UPGRADE_CHECK=true"
+sudo systemctl restart expresslane.service
+```
+
+**Podman / docker-compose (Option 2 — Podman Install):**
+
+```bash
+echo 'EXPRESSLANE_NO_UPGRADE_CHECK=true' >> .env
+podman-compose up -d --force-recreate
+```
+
+You can verify the feature is off by checking that `~/.expresslane/install_id` does **not** exist after starting ExpressLane, and that the navbar shows no upgrade banner.
 
 ---
 

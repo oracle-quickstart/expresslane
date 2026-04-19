@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ExpressLane bare-metal installer for Oracle Linux 8/9
-# Usage: sudo bash deploy.sh [--source /path/to/vm_migrator_oci]
+# Usage: sudo bash deploy.sh [--source /path/to/expresslane]
 #                             [--fqdn HOSTNAME]
 #                             [--tls-cert /path/to/fullchain.pem]
 #                             [--tls-key  /path/to/privkey.pem]
@@ -45,7 +45,7 @@ fi
 
 if [[ ! -f "$SOURCE_DIR/app.py" ]]; then
     echo "ERROR: Cannot find app.py in $SOURCE_DIR"
-    echo "Usage: sudo bash deploy.sh --source /path/to/vm_migrator_oci"
+    echo "Usage: sudo bash deploy.sh --source /path/to/expresslane"
     exit 1
 fi
 
@@ -242,11 +242,15 @@ echo ""
 echo "[7/7] Starting services..."
 
 systemctl enable --now ${SERVICE_NAME}
-systemctl enable nginx
-# Reload (not just --now) so a running nginx actually picks up conf.d/expresslane.conf.
-# --now is a no-op when nginx is already running, which is how users hit the OL
-# default test page after uninstall+reinstall.
-systemctl reload nginx || systemctl restart nginx
+
+# Start nginx if it's not already running (fresh install), then reload so
+# a running instance picks up /etc/nginx/conf.d/expresslane.conf (upgrade
+# path). Using enable --now + reload in that order avoids the cosmetic
+# "Unit cannot be reloaded because it is inactive" warning that `systemctl
+# reload` prints when nginx hasn't started yet. The `|| restart` fallback
+# is kept as belt-and-suspenders in case reload fails for any other reason.
+systemctl enable --now nginx
+systemctl reload nginx 2>/dev/null || systemctl restart nginx
 
 # Wait a moment for gunicorn to start
 sleep 2

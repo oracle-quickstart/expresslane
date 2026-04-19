@@ -4,7 +4,8 @@ WORKDIR /app
 
 # Install dependencies first (layer caching)
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
 # Create non-root user
 RUN groupadd -r expresslane && \
@@ -13,7 +14,7 @@ RUN groupadd -r expresslane && \
     chown -R expresslane:expresslane /app /home/expresslane
 
 # Copy application files explicitly (not COPY . .)
-COPY app.py config.py models.py gunicorn.conf.py oci_clients.py version.py ./
+COPY app.py config.py models.py gunicorn.conf.py oci_clients.py version.py upgrade_check.py ./
 COPY ocm_migration.py migration_sizer.py inventory_dashboard.py inventory_cache.py ./
 COPY asset_specs_extractor.py aws_oci_mapping.json ./
 COPY templates/ templates/
