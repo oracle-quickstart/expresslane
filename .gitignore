@@ -1,0 +1,42 @@
+# Secrets and configuration
+config.json
+.env
+.env.*
+!.env.example
+
+# Database — dir ships empty via instance/.keep so extracting the release
+# tarball creates it with the correct ownership; all real DB files ignored.
+instance/*
+!instance/.keep
+*.db
+
+# Cache — same .keep pattern
+cache/*
+!cache/.keep
+
+# Certificates and TLS — same .keep pattern
+certs/*
+!certs/.keep
+*.pem
+*.key
+*.crt
+*.cert
+*.p12
+*.pfx
+*.jks
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+venv/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

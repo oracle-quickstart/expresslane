@@ -1,0 +1,10 @@
+<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <!-- VMware-inspired icon with their brand colors -->
+  <path fill="#607078" d="M3 4h18v3H3z"/>
+  <path fill="#607078" d="M3 9h18v3H3z"/>
+  <path fill="#607078" d="M3 14h18v3H3z"/>
+  <circle fill="#00C1D5" cx="6" cy="5.5" r="1"/>
+  <circle fill="#00C1D5" cx="6" cy="10.5" r="1"/>
+  <circle fill="#00C1D5" cx="6" cy="15.5" r="1"/>
+  <path fill="#607078" d="M3 19h18v1H3z"/>
+</svg>

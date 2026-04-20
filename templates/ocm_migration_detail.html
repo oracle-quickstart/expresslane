@@ -1,0 +1,1799 @@
+<!-- Copyright (c) 2024, 2025, 2026, Oracle and/or its affiliates.
+     Licensed under the Universal Permissive License v1.0 as shown at
+     https://oss.oracle.com/licenses/upl/ -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ExpressLane | OCM - {{ migration.vm_name }}</title>
+    <link href="{{ url_for('static', filename='fontawesome/css/all.min.css') }}" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Oracle Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            background: #f5f3ef;
+            color: #161513;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        /* Top Navigation Bar - inherits from _navbar.html */
+
+        .oracle-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-right: 24px;
+        }
+
+        .oracle-logo svg {
+            width: 32px;
+            height: 32px;
+        }
+
+        .oracle-logo span {
+            color: #fff;
+            font-size: 16px;
+            font-weight: 400;
+        }
+
+        .search-bar {
+            flex: 1;
+            max-width: 600px;
+            position: relative;
+        }
+
+        .search-bar input {
+            width: 100%;
+            padding: 8px 36px 8px 12px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 4px;
+            color: #fff;
+            font-size: 14px;
+        }
+
+        .search-bar input::placeholder {
+            color: rgba(255,255,255,0.6);
+        }
+
+        .region-selector {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #fff;
+            padding: 6px 12px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 240px;
+            background: #fff;
+            border-right: 1px solid #e9e8e6;
+            height: calc(100vh - 48px);
+            position: fixed;
+            overflow-y: auto;
+        }
+
+        .sidebar-header {
+            padding: 16px 16px 8px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #6b6969;
+            letter-spacing: 0.5px;
+        }
+
+        .sidebar-item {
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+            color: #161513;
+            text-decoration: none;
+        }
+
+        .sidebar-item:hover {
+            background: #f7f8fa;
+        }
+
+        .sidebar-item.active {
+            background: #e6f0ff;
+            border-left: 3px solid #0572ce;
+            padding-left: 13px;
+        }
+
+        .sidebar-item i {
+            width: 16px;
+            text-align: center;
+            color: #6b6969;
+        }
+
+        .sidebar-item.active i {
+            color: #0572ce;
+        }
+
+        /* Main Content */
+        .main-content {
+            padding: 24px;
+            min-height: calc(100vh - 48px);
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Breadcrumb */
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 24px;
+            font-size: 14px;
+            color: #6b6969;
+        }
+
+        .breadcrumb a {
+            color: #0572ce;
+            text-decoration: none;
+        }
+
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+
+        /* Page Header */
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .page-title {
+            font-size: 28px;
+            font-weight: 300;
+            color: #161513;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        /* Cards */
+        .card {
+            background: #fff;
+            border: 1px solid #e9e8e6;
+            border-radius: 8px;
+            margin-bottom: 24px;
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 16px 24px;
+            border-bottom: 1px solid #e9e8e6;
+            background: #fafafa;
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #161513;
+        }
+
+        .card-body {
+            padding: 24px;
+        }
+
+        /* Overview Cards */
+        .overview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .overview-card {
+            padding: 20px;
+            background: #fff;
+            border: 1px solid #e9e8e6;
+            border-radius: 8px;
+        }
+
+        .overview-label {
+            font-size: 12px;
+            color: #6b6969;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .overview-value {
+            font-size: 20px;
+            font-weight: 300;
+            color: #161513;
+        }
+
+        /* Status Pills */
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: capitalize;
+        }
+
+        .status-running {
+            background: #e6f7ed;
+            color: #0e6333;
+        }
+
+        .status-pending {
+            background: #fef5e6;
+            color: #8e6f1f;
+        }
+
+        .status-completed {
+            background: #e6f7ed;
+            color: #0e6333;
+        }
+
+        .status-failed {
+            background: #feebeb;
+            color: #8e1f1f;
+        }
+
+        .status-in-sync {
+            background: #e1f0fa;
+            color: #0572ce;
+        }
+
+        .status-cutting-over {
+            background: #f3e8ff;
+            color: #7c3aed;
+        }
+
+        .status-cancelled {
+            background: #f5f5f5;
+            color: #6b6969;
+        }
+
+        .status-test-deploying {
+            background: #fff3e0;
+            color: #e65100;
+        }
+
+        .status-test-deployed {
+            background: #e0f2f1;
+            color: #00695c;
+        }
+
+        .status-test-cleanup {
+            background: #fff3e0;
+            color: #e65100;
+        }
+
+        .status-test-deploy-failed {
+            background: #fce4ec;
+            color: #c62828;
+        }
+
+        .status-test-cleanup-failed {
+            background: #fce4ec;
+            color: #c62828;
+        }
+
+        /* Test Mini-Progress */
+        .test-progress-steps {
+            display: flex;
+            justify-content: space-between;
+            position: relative;
+            margin-bottom: 16px;
+        }
+
+        .test-progress-line {
+            position: absolute;
+            top: 16px;
+            left: 30px;
+            right: 30px;
+            height: 2px;
+            background: #e9e8e6;
+            z-index: 1;
+        }
+
+        .test-progress-line-fill {
+            height: 100%;
+            background: #e65100;
+            transition: width 1s ease;
+        }
+
+        .test-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            z-index: 2;
+            flex: 1;
+        }
+
+        .test-step-circle {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #fff;
+            border: 2px solid #e9e8e6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 12px;
+            color: #6b6969;
+            margin-bottom: 6px;
+            transition: all 0.3s;
+        }
+
+        .test-step.active .test-step-circle {
+            border-color: #e65100;
+            background: #e65100;
+            color: #fff;
+        }
+
+        .test-step.completed .test-step-circle {
+            border-color: #0e6333;
+            background: #0e6333;
+            color: #fff;
+        }
+
+        .test-step.failed .test-step-circle {
+            border-color: #c62828;
+            background: #c62828;
+            color: #fff;
+        }
+
+        .test-step-label {
+            font-size: 11px;
+            color: #6b6969;
+            text-align: center;
+            max-width: 90px;
+        }
+
+        .test-step.active .test-step-label {
+            color: #e65100;
+            font-weight: 600;
+        }
+
+        .test-step.completed .test-step-label {
+            color: #0e6333;
+        }
+
+        .test-cleanup-warning {
+            background: #fff3e0;
+            border: 1px solid #ffcc80;
+            border-left: 4px solid #e65100;
+            padding: 12px 16px;
+            border-radius: 4px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #e65100;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        /* Progress Steps */
+        .progress-container {
+            margin: 24px 0;
+        }
+
+        .progress-steps {
+            display: flex;
+            justify-content: space-between;
+            position: relative;
+            margin-bottom: 32px;
+        }
+
+        .progress-line {
+            position: absolute;
+            top: 20px;
+            left: 40px;
+            right: 40px;
+            height: 2px;
+            background: #e9e8e6;
+            z-index: 1;
+        }
+
+        .progress-line-fill {
+            height: 100%;
+            background: #0572ce;
+            transition: width 1s ease;
+        }
+
+        .step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            z-index: 2;
+            cursor: pointer;
+            flex: 1;
+        }
+
+        .step-circle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #fff;
+            border: 2px solid #e9e8e6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            color: #6b6969;
+            margin-bottom: 8px;
+            transition: all 0.3s;
+        }
+
+        .step.active .step-circle {
+            border-color: #0572ce;
+            background: #0572ce;
+            color: #fff;
+        }
+
+        .step.completed .step-circle {
+            border-color: #0e6333;
+            background: #0e6333;
+            color: #fff;
+        }
+
+        .step.failed .step-circle {
+            background: #8e1f1f;
+            border-color: #8e1f1f;
+            color: #fff;
+        }
+
+        .step-label {
+            font-size: 12px;
+            color: #6b6969;
+            text-align: center;
+            max-width: 100px;
+        }
+
+        .step.active .step-label {
+            color: #0572ce;
+            font-weight: 600;
+        }
+
+        .step.completed .step-label {
+            color: #0e6333;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 10px 24px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: #0572ce;
+            color: #fff;
+            border-color: #0572ce;
+        }
+
+        .btn-primary:hover {
+            background: #0460b1;
+            border-color: #0460b1;
+        }
+
+        .btn-secondary {
+            background: #fff;
+            color: #161513;
+            border-color: #d9d7d5;
+        }
+
+        .btn-secondary:hover {
+            background: #f7f8fa;
+        }
+
+        .btn-warning {
+            background: #f5a623;
+            color: #fff;
+            border-color: #f5a623;
+        }
+
+        .btn-warning:hover {
+            background: #e09310;
+        }
+
+        .btn-danger {
+            background: #c74634;
+            color: #fff;
+            border-color: #c74634;
+        }
+
+        .btn-danger:hover {
+            background: #b13826;
+        }
+
+        /* Logs Container */
+        .logs-container {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 16px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            max-height: 600px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .log-line {
+            margin-bottom: 2px;
+        }
+
+        .log-error {
+            color: #f48771;
+        }
+
+        .log-success {
+            color: #89d185;
+        }
+
+        .log-warning {
+            color: #e5c07b;
+        }
+
+        .log-info {
+            color: #61afef;
+        }
+
+        /* Step Details */
+        .step-details {
+            display: none;
+            margin-top: 24px;
+            padding: 16px;
+            background: #f7f8fa;
+            border-radius: 4px;
+            border-left: 3px solid #0572ce;
+        }
+
+        .step-details.active {
+            display: block;
+        }
+
+        .step-details-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #0572ce;
+        }
+
+        .step-details-content {
+            font-size: 13px;
+            color: #6b6969;
+            line-height: 1.6;
+        }
+
+        /* Resume Banner */
+        .resume-banner {
+            background: #fef5e6;
+            border: 1px solid #f5e0b8;
+            border-radius: 8px;
+            padding: 16px 24px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .resume-banner-text {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .resume-banner-icon {
+            color: #f5a623;
+            font-size: 24px;
+        }
+
+        /* Spinner Animation */
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .fa-spin {
+            animation: spin 1s linear infinite;
+        }
+
+        /* Step Logs */
+        .step-logs {
+            background: #fff;
+            border: 1px solid #e9e8e6;
+            border-radius: 4px;
+            padding: 12px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            max-height: 400px;
+            overflow-y: auto;
+            color: #161513;
+        }
+
+        .log-line {
+            margin-bottom: 4px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .log-error {
+            color: #8e1f1f;
+        }
+
+        .log-success {
+            color: #0e6333;
+        }
+
+        .log-warning {
+            color: #8e6f1f;
+        }
+
+        .log-info {
+            color: #0572ce;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .progress-steps {
+                flex-direction: column;
+                gap: 16px;
+            }
+
+            .progress-line {
+                display: none;
+            }
+
+            .overview-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        .dot-pulse {
+            display: inline-flex;
+            gap: 3px;
+            margin-left: 6px;
+            vertical-align: middle;
+        }
+        .dot-pulse span {
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: #c4a882;
+            animation: dotPulse 1.4s ease-in-out infinite;
+        }
+        .dot-pulse span:nth-child(2) { animation-delay: 0.2s; }
+        .dot-pulse span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes dotPulse {
+            0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+            40% { opacity: 1; transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+    {% include '_navbar.html' %}
+
+    <!-- Main Content -->
+    <div class="main-content">
+<!-- Page Header -->
+        <div class="page-header">
+            <h1 class="page-title">
+                {{ migration.vm_name }}
+                {% if migration.is_batch and migration.vm_count > 1 %}
+                    <span style="color: #6b6969; font-weight: 300; font-size: 20px;">(+ {{ migration.vm_count - 1 }} Additional)</span>
+                {% endif %}
+            </h1>
+            <div class="header-actions">
+                {% if migration.status in ['Running', 'Pending', 'In-Sync', 'Cutting-Over'] and not migration.status.startswith('Test-') %}
+                <button onclick="cancelMigration()" class="btn btn-danger" id="cancel-btn">
+                    <i class="fas fa-times"></i>
+                    Cancel Migration
+                </button>
+                {% endif %}
+                <a href="javascript:history.back()" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i>
+                    Back
+                </a>
+            </div>
+        </div>
+
+        <!-- Resume Banner (shown if migration failed and can resume) -->
+        {% if migration.status == 'Failed' and migration.can_resume %}
+        <div class="resume-banner">
+            <div class="resume-banner-text">
+                <i class="fas fa-exclamation-triangle resume-banner-icon"></i>
+                <div>
+                    <div style="font-weight: 600; margin-bottom: 4px;">Migration Failed</div>
+                    <div style="font-size: 13px; color: #6b6969;">
+                        This migration can be resumed from step {{ migration.last_completed_step + 1 }}
+                    </div>
+                </div>
+            </div>
+            <form action="/ocm/resume/{{ migration.id }}" method="POST" style="display: inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-warning">
+                    <i class="fas fa-redo"></i>
+                    Resume Migration
+                </button>
+            </form>
+        </div>
+        {% endif %}
+
+        <!-- Awesomeworking engine transplant 2026-04-11: legacy test_cleanup_required
+             warning removed. The new sidecar model handles this via the Failed-state
+             banner driven by test_status below. -->
+        {% if migration.test_status == 'Failed' %}
+        <div class="test-cleanup-warning">
+            <i class="fas fa-exclamation-triangle"></i>
+            Previous test VM did not clean up successfully. Click "Clean Up Test VM" to retry before cutover.
+        </div>
+        {% endif %}
+
+        <!-- Cutover Banner (shown if migration is In-Sync) -->
+        {% if migration.status == 'In-Sync' %}
+        <div class="resume-banner" style="background: linear-gradient(135deg, #e1f0fa 0%, #d4e9f7 100%); border-left-color: #0572ce;">
+            <div class="resume-banner-text">
+                <i class="fas fa-sync resume-banner-icon" style="color: #0572ce;"></i>
+                <div>
+                    <div style="font-weight: 600; margin-bottom: 4px; color: #0572ce;">Warm Migration - In Sync</div>
+                    <div style="font-size: 13px; color: #6b6969;">
+                        Data replication is complete. Use "Sync Now" to perform a delta sync, or "Cutover" to deploy to OCI.
+                    </div>
+                </div>
+            </div>
+            <div style="display: flex; gap: 12px;">
+                <button type="button" class="btn btn-secondary" id="sync-now-btn" onclick="triggerSyncNow({{ migration.id }})">
+                    <i class="fas fa-sync-alt"></i>
+                    Sync Now
+                </button>
+                {% if migration.is_scheduled and migration.schedule_type in ['ONCE', 'DAILY', 'WEEKLY'] and migration.test_status in [None, 'Cleaned Up'] %}
+                <button type="button" class="btn btn-secondary" id="test-migration-btn"
+                        onclick="triggerTestMigration({{ migration.id }})"
+                        style="border-color: #e65100; color: #e65100;">
+                    <i class="fas fa-flask"></i>
+                    Test Migration
+                </button>
+                {% endif %}
+                {# NOTE: The "Clean Up Test VM" button is intentionally NOT shown here.
+                   When test_status is Running / Failed, the cleanup button lives in
+                   the sidecar "Test VM Deployed" / "Test VM Operation Failed" banner
+                   below, which gives the user the right context (validation
+                   instructions, failure details) alongside the action. #}
+                <button type="button" class="btn btn-primary" id="cutover-btn" onclick="triggerCutover({{ migration.id }})">
+                    <i class="fas fa-rocket"></i>
+                    Cutover Now
+                </button>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Sidecar test-migration banners — awesomeworking engine transplant 2026-04-11.
+             Driven entirely by migration.test_status; main status stays 'In-Sync' throughout. -->
+
+        {% if migration.test_status == 'Deploying' %}
+        <div class="resume-banner" style="background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%); border-left-color: #e65100;">
+            <div class="resume-banner-text">
+                <i class="fas fa-flask resume-banner-icon" style="color: #e65100;"></i>
+                <div>
+                    <div style="font-weight: 600; margin-bottom: 4px; color: #e65100;">
+                        Test VM Deployment In Progress
+                        <span class="dot-pulse"><span></span><span></span><span></span></span>
+                    </div>
+                    <div style="font-size: 13px; color: #6b6969;">
+                        Running steps 5 + 6 against the existing migration plan to launch a test VM in OCI. Main replication continues to run normally.
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if migration.test_status == 'Running' %}
+        <div class="resume-banner" style="background: linear-gradient(135deg, #e0f2f1 0%, #b2dfdb 100%); border-left-color: #00695c;">
+            <div class="resume-banner-text">
+                <i class="fas fa-check-circle resume-banner-icon" style="color: #00695c;"></i>
+                <div>
+                    <div style="font-weight: 600; margin-bottom: 4px; color: #00695c;">Test VM Deployed</div>
+                    <div style="font-size: 13px; color: #6b6969;">
+                        Validate the VM in the OCI Console. When finished, clean it up and the preserved boot volume will be reused on the real cutover.
+                    </div>
+                </div>
+            </div>
+            <div style="display: flex; gap: 12px;">
+                <button type="button" class="btn btn-warning" id="test-cleanup-btn" onclick="triggerCleanupTestVm({{ migration.id }})">
+                    <i class="fas fa-trash"></i>
+                    Clean Up Test VM
+                </button>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if migration.test_status == 'Cleaning Up' %}
+        <div class="resume-banner" style="background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%); border-left-color: #e65100;">
+            <div class="resume-banner-text">
+                <i class="fas fa-trash resume-banner-icon" style="color: #e65100;"></i>
+                <div>
+                    <div style="font-weight: 600; margin-bottom: 4px; color: #e65100;">
+                        Cleaning Up Test VM
+                        <span class="dot-pulse"><span></span><span></span><span></span></span>
+                    </div>
+                    <div style="font-size: 13px; color: #6b6969;">
+                        Terminating test instances with preserve_boot_volume=True. The RMS stack and hydrated boot volume are retained for cutover.
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if migration.test_status == 'Failed' %}
+        <div class="resume-banner" style="background: linear-gradient(135deg, #fce4ec 0%, #f8bbd0 100%); border-left-color: #c62828;">
+            <div class="resume-banner-text">
+                <i class="fas fa-exclamation-triangle resume-banner-icon" style="color: #c62828;"></i>
+                <div>
+                    <div style="font-weight: 600; margin-bottom: 4px; color: #c62828;">Test VM Operation Failed</div>
+                    <div style="font-size: 13px; color: #6b6969;">
+                        The test deploy or cleanup did not complete cleanly. Check the test logs below, then click Clean Up Test VM to retry cleanup before cutover.
+                    </div>
+                </div>
+            </div>
+            <div style="display: flex; gap: 12px;">
+                <button type="button" class="btn btn-warning" id="test-cleanup-btn" onclick="triggerCleanupTestVm({{ migration.id }})">
+                    <i class="fas fa-trash"></i>
+                    Clean Up Test VM
+                </button>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Batch VMs List (shown if batch migration) -->
+        {% if migration.is_batch and migration.vms_json %}
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">Batch Migration: {{ migration.vm_count }} VMs</h2>
+            </div>
+            <div class="card-body">
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px;">
+                    {% for vm in migration_data.vms %}
+                    <div style="padding: 12px; background: #f7f8fa; border-radius: 4px; border-left: 3px solid #0572ce;">
+                        <div style="font-weight: 600; margin-bottom: 4px;">{{ vm.vm_name }}</div>
+                        <div style="font-size: 12px; color: #6b6969;">{{ vm.source_type }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Overview Cards -->
+        <div class="overview-grid">
+            <div class="overview-card">
+                <div class="overview-label">Status</div>
+                <div class="overview-value">
+                    <span class="status-pill status-{{ migration.status.lower() }}">
+                        {% if migration.status == 'Running' %}
+                            <i class="fas fa-circle" style="font-size: 8px;"></i>
+                        {% elif migration.status == 'In-Sync' %}
+                            <i class="fas fa-sync" style="font-size: 10px;"></i>
+                        {% elif migration.status == 'Cutting-Over' %}
+                            <i class="fas fa-rocket" style="font-size: 10px;"></i>
+                        {% elif migration.status == 'Cancelled' %}
+                            <i class="fas fa-ban" style="font-size: 10px;"></i>
+                        {% endif %}
+                        {{ migration.status }}
+                    </span>
+                    {% if migration.test_status %}
+                    <span class="status-pill" style="background: #fff4e6; color: #c75300; margin-left: 8px;">
+                        <i class="fas fa-flask" style="font-size: 9px;"></i> Test: {{ migration.test_status }}
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="overview-card">
+                <div class="overview-label">Source Type</div>
+                <div class="overview-value">{{ migration.source_type }}</div>
+            </div>
+
+            <div class="overview-card">
+                <div class="overview-label">Duration</div>
+                <div class="overview-value" id="duration">Calculating...</div>
+            </div>
+
+            <div class="overview-card">
+                <div class="overview-label">Current Step</div>
+                <div class="overview-value" id="current-step">{{ migration.current_step }} / 6</div>
+            </div>
+        </div>
+
+        <!-- Migration Progress Card -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">OCM Migration Progress (6 Steps)</h2>
+            </div>
+            <div class="card-body">
+                <div class="progress-container">
+                    <div class="progress-steps">
+                        <div class="progress-line">
+                            <div class="progress-line-fill" id="progress-fill" style="width: 0%"></div>
+                        </div>
+
+                        <div class="step" data-step="1" onclick="showStepDetails(1)">
+                            <div class="step-circle">1</div>
+                            <div class="step-label">Create Project</div>
+                        </div>
+
+                        <div class="step" data-step="2" onclick="showStepDetails(2)">
+                            <div class="step-circle">2</div>
+                            <div class="step-label">Create Plan</div>
+                        </div>
+
+                        <div class="step" data-step="3" onclick="showStepDetails(3)">
+                            <div class="step-circle">3</div>
+                            <div class="step-label">Add Asset</div>
+                        </div>
+
+                        <div class="step" data-step="4" onclick="showStepDetails(4)">
+                            <div class="step-circle">4</div>
+                            <div class="step-label">Replicate Asset</div>
+                        </div>
+
+                        <div class="step" data-step="5" onclick="showStepDetails(5)">
+                            <div class="step-circle">5</div>
+                            <div class="step-label">Generate RMS Stack</div>
+                        </div>
+
+                        <div class="step" data-step="6" onclick="showStepDetails(6)">
+                            <div class="step-circle">6</div>
+                            <div class="step-label">Deploy Stack</div>
+                        </div>
+                    </div>
+
+                    <!-- Step Details -->
+                    <div id="step-details-1" class="step-details">
+                        <div class="step-details-title"><i class="fas fa-folder-plus"></i> Step 1: Create Migration Project</div>
+                        <div class="step-logs" id="logs-step-1">Waiting for step to begin...</div>
+                    </div>
+
+                    <div id="step-details-2" class="step-details">
+                        <div class="step-details-title"><i class="fas fa-sitemap"></i> Step 2: Create Migration Plan</div>
+                        <div class="step-logs" id="logs-step-2">Waiting for step to begin...</div>
+                    </div>
+
+                    <div id="step-details-3" class="step-details">
+                        <div class="step-details-title"><i class="fas fa-plus-circle"></i> Step 3: Add Asset to Project</div>
+                        <div class="step-logs" id="logs-step-3">Waiting for step to begin...</div>
+                    </div>
+
+                    <div id="step-details-4" class="step-details">
+                        <div class="step-details-title"><i class="fas fa-sync-alt"></i> Step 4: Replicate Asset (Longest Step)</div>
+                        <div class="step-logs" id="logs-step-4">Waiting for step to begin...</div>
+                    </div>
+
+                    <div id="step-details-5" class="step-details">
+                        <div class="step-details-title"><i class="fas fa-layer-group"></i> Step 5: Generate Resource Manager Stack</div>
+                        <div class="step-logs" id="logs-step-5">Waiting for step to begin...</div>
+                    </div>
+
+                    <div id="step-details-6" class="step-details">
+                        <div class="step-details-title"><i class="fas fa-rocket"></i> Step 6: Deploy Resource Manager Stack</div>
+                        <div class="step-logs" id="logs-step-6">Waiting for step to begin...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Test Migration sidecar panel — awesomeworking engine transplant 2026-04-11.
+             Shown only while main migration is in In-Sync state (the phase where
+             test-deploy / validate / cleanup are relevant). Once the user clicks
+             Cutover Now, main status advances to Cutting-Over and then Completed,
+             and the test card becomes historical noise — hide it. Test logs are
+             still in the DB if an audit is needed.
+             The 4-step mini progress bar is reinstated from v1.6 UI but wired to the new
+             sidecar model (test_status + test_rms_job_id) instead of the old Test-* statuses. -->
+        {% if migration.test_status and migration.status == 'In-Sync' %}
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title"><i class="fas fa-flask" style="color: #e65100;"></i> Test Migration</h2>
+            </div>
+            <div class="card-body">
+                <!-- 4-step mini progress bar — painted client-side by updateTestProgress() -->
+                <div class="test-progress-steps" id="test-progress-steps" style="margin-bottom: 24px;">
+                    <div class="test-progress-line">
+                        <div class="test-progress-line-fill" id="test-progress-fill" style="width: 0%"></div>
+                    </div>
+                    <div class="test-step" data-test-step="1">
+                        <div class="test-step-circle">1</div>
+                        <div class="test-step-label">Generate Test Stack</div>
+                    </div>
+                    <div class="test-step" data-test-step="2">
+                        <div class="test-step-circle">2</div>
+                        <div class="test-step-label">Deploy Test VM</div>
+                    </div>
+                    <div class="test-step" data-test-step="3">
+                        <div class="test-step-circle">3</div>
+                        <div class="test-step-label">Awaiting Validation</div>
+                    </div>
+                    <div class="test-step" data-test-step="4">
+                        <div class="test-step-circle">4</div>
+                        <div class="test-step-label">Clean Up Test VM</div>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 16px;">
+                    <div>
+                        <div class="overview-label">Test Status</div>
+                        <div class="overview-value" id="test-status-value">{{ migration.test_status }}</div>
+                    </div>
+                    <div>
+                        <div class="overview-label">Started</div>
+                        <div class="overview-value" id="test-start-value" style="font-size: 13px;">
+                            {{ migration.test_start_time.strftime('%Y-%m-%d %H:%M:%S') if migration.test_start_time else '—' }}
+                        </div>
+                    </div>
+                    <div>
+                        <div class="overview-label">Ended</div>
+                        <div class="overview-value" id="test-end-value" style="font-size: 13px;">
+                            {{ migration.test_end_time.strftime('%Y-%m-%d %H:%M:%S') if migration.test_end_time else '—' }}
+                        </div>
+                    </div>
+                    <div>
+                        <div class="overview-label">APPLY Job</div>
+                        <div class="overview-value" id="test-job-value" style="font-family: monospace; font-size: 11px; word-break: break-all;">
+                            {{ migration.test_rms_job_id or '—' }}
+                        </div>
+                    </div>
+                </div>
+                <div class="logs-container" id="test-logs-content" style="max-height: 400px;">{{ migration.test_logs or 'No test activity yet.' }}</div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Migration Logs Card -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">Migration Logs</h2>
+            </div>
+            <div class="card-body">
+                <div class="logs-container" id="logs-content">
+                    {{ migration.logs or 'No logs available yet...' }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Resource OCIDs Card -->
+        {% if migration.project_ocid or migration.plan_ocid or migration.asset_ocid or migration.rms_stack_ocid %}
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">Created Resources</h2>
+            </div>
+            <div class="card-body">
+                <div style="display: grid; gap: 16px;">
+                    {% if migration.project_ocid %}
+                    <div>
+                        <div style="font-weight: 600; margin-bottom: 4px;">Migration Project OCID</div>
+                        <div style="font-family: monospace; font-size: 12px; color: #6b6969;">{{ migration.project_ocid }}</div>
+                    </div>
+                    {% endif %}
+
+                    {% if migration.plan_ocid %}
+                    <div>
+                        <div style="font-weight: 600; margin-bottom: 4px;">Migration Plan OCID</div>
+                        <div style="font-family: monospace; font-size: 12px; color: #6b6969;">{{ migration.plan_ocid }}</div>
+                    </div>
+                    {% endif %}
+
+                    {% if migration.asset_ocid %}
+                    <div>
+                        <div style="font-weight: 600; margin-bottom: 4px;">Migration Asset OCID</div>
+                        <div style="font-family: monospace; font-size: 12px; color: #6b6969;">{{ migration.asset_ocid }}</div>
+                    </div>
+                    {% endif %}
+
+                    {% if migration.rms_stack_ocid %}
+                    <div>
+                        <div style="font-weight: 600; margin-bottom: 4px;">RMS Stack OCID</div>
+                        <div style="font-family: monospace; font-size: 12px; color: #6b6969;">{{ migration.rms_stack_ocid }}</div>
+                    </div>
+                    {% endif %}
+
+                    {% if migration.rms_job_id %}
+                    <div>
+                        <div style="font-weight: 600; margin-bottom: 4px;">RMS Job ID</div>
+                        <div style="font-family: monospace; font-size: 12px; color: #6b6969;">{{ migration.rms_job_id }}</div>
+                    </div>
+                    {% endif %}
+
+                    {% if migration.test_rms_job_id %}
+                    <div>
+                        <div style="font-weight: 600; margin-bottom: 4px; color: #e65100;">Test APPLY Job ID</div>
+                        <div style="font-family: monospace; font-size: 12px; color: #6b6969;">{{ migration.test_rms_job_id }}</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <script>
+        // Migration data from server
+        const migrationData = {{ migration_data | tojson | safe }};
+
+        // Helper: validate response is OK + JSON before parsing
+        function handleFetchResponse(response) {
+            const contentType = response.headers.get('content-type') || '';
+            if (!response.ok) {
+                return response.text().then(text => {
+                    if (contentType.includes('application/json')) {
+                        try {
+                            const data = JSON.parse(text);
+                            throw new Error(data.error || `Server error (${response.status})`);
+                        } catch (e) {
+                            if (e.message && !e.message.startsWith('Unexpected')) throw e;
+                            throw new Error(`Server error (${response.status})`);
+                        }
+                    }
+                    throw new Error(`Server error (${response.status})`);
+                });
+            }
+            if (!contentType.includes('application/json')) {
+                return response.text().then(() => {
+                    throw new Error(`Unexpected non-JSON response (${response.status})`);
+                });
+            }
+            return response.json();
+        }
+
+        let pollFailureCount = 0;
+
+        // Cancel migration function — Sprint 3 #4/#5 (2026-04-11).
+        async function cancelMigration() {
+            const ok = await confirmAction({
+                title: 'Cancel migration?',
+                message: 'This will stop the migration for {{ migration.vm_name }}. For warm migrations in In-Sync state, it will also delete the OCM migration assets and stop replication. The migration will be marked as Cancelled.',
+                confirmText: 'Cancel Migration',
+                cancelText: 'Keep Running',
+                destructive: true,
+            });
+            if (!ok) return;
+
+            const cancelBtn = document.getElementById('cancel-btn');
+            if (cancelBtn) {
+                cancelBtn.disabled = true;
+                cancelBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cancelling...';
+            }
+
+            fetch('/ocm/cancel/{{ migration.id }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(handleFetchResponse)
+            .then(data => {
+                if (data.success) {
+                    window.toast.success('Migration cancelled');
+                    setTimeout(() => location.reload(), 600);
+                } else {
+                    window.toast.error(data.error || 'Failed to cancel migration');
+                    if (cancelBtn) {
+                        cancelBtn.disabled = false;
+                        cancelBtn.innerHTML = '<i class="fas fa-times"></i> Cancel Migration';
+                    }
+                }
+            })
+            .catch(error => {
+                window.toast.error('Network error: ' + error.message);
+                if (cancelBtn) {
+                    cancelBtn.disabled = false;
+                    cancelBtn.innerHTML = '<i class="fas fa-times"></i> Cancel Migration';
+                }
+            });
+        }
+
+        // Cutover function for warm migrations — Sprint 3 #4/#5 (2026-04-11).
+        async function triggerCutover(migrationId) {
+            const ok = await confirmAction({
+                title: 'Initiate cutover for {{ migration.vm_name }}?',
+                message: 'This will run steps 5 and 6 to deploy the real VM to OCI and complete the migration. The warm-migration replication will stop.',
+                confirmText: 'Cutover Now',
+                cancelText: 'Not Yet',
+                destructive: false,
+            });
+            if (!ok) return;
+
+            const cutoverBtn = document.getElementById('cutover-btn');
+            if (cutoverBtn) {
+                cutoverBtn.disabled = true;
+                cutoverBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Initiating Cutover...';
+            }
+
+            fetch(`/ocm/cutover/${migrationId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(handleFetchResponse)
+            .then(data => {
+                if (data.success) {
+                    window.toast.success('Cutover initiated — deployment starting');
+                    setTimeout(() => location.reload(), 600);
+                } else {
+                    window.toast.error(data.error || 'Failed to initiate cutover');
+                    if (cutoverBtn) {
+                        cutoverBtn.disabled = false;
+                        cutoverBtn.innerHTML = '<i class="fas fa-rocket"></i> Cutover Now';
+                    }
+                }
+            })
+            .catch(error => {
+                window.toast.error('Network error: ' + error.message);
+                if (cutoverBtn) {
+                    cutoverBtn.disabled = false;
+                    cutoverBtn.innerHTML = '<i class="fas fa-rocket"></i> Cutover Now';
+                }
+            });
+        }
+
+        // Sync Now — Sprint 3 #4/#5 (2026-04-11).
+        // Triggers an immediate delta replication cycle on a warm migration.
+        async function triggerSyncNow(migrationId) {
+            const ok = await confirmAction({
+                title: 'Run a delta sync now?',
+                message: 'This replicates any changes on {{ migration.vm_name }} since the last sync. Live progress will appear in the migration log below.',
+                confirmText: 'Sync Now',
+                cancelText: 'Cancel',
+                destructive: false,
+            });
+            if (!ok) return;
+
+            const syncBtn = document.getElementById('sync-now-btn');
+            if (syncBtn) {
+                syncBtn.disabled = true;
+                syncBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Syncing...';
+            }
+
+            fetch(`/api/ocm/sync-now/${migrationId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(handleFetchResponse)
+            .then(data => {
+                if (data.success) {
+                    window.toast.success(data.message || 'Delta sync started');
+                    if (data.errors && data.errors.length > 0) {
+                        data.errors.forEach(e => {
+                            window.toast.warn(`${e.vm_name}: ${e.error}`);
+                        });
+                    }
+                    setTimeout(() => location.reload(), 600);
+                } else {
+                    window.toast.error(data.error || 'Failed to initiate sync');
+                }
+                if (syncBtn) {
+                    syncBtn.disabled = false;
+                    syncBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Sync Now';
+                }
+            })
+            .catch(error => {
+                window.toast.error('Network error: ' + error.message);
+                if (syncBtn) {
+                    syncBtn.disabled = false;
+                    syncBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Sync Now';
+                }
+            });
+        }
+
+        // Test Migration trigger — awesomeworking engine transplant 2026-04-11.
+        // Posts to /ocm/test-migration/<id> which kicks off run_test_migration in
+        // a background thread. Main migration.status stays 'In-Sync' throughout;
+        // sidecar migration.test_status tracks the test lifecycle.
+        async function triggerTestMigration(migrationId) {
+            const ok = await confirmAction({
+                title: 'Deploy a test VM for {{ migration.vm_name }}?',
+                message: 'This runs steps 5 and 6 against the current migration plan to launch a real VM in OCI for validation. Main replication continues unaffected. When finished, click "Clean Up Test VM" — the hydrated boot volume is preserved for the real cutover.',
+                confirmText: 'Deploy Test VM',
+                cancelText: 'Cancel',
+                destructive: false,
+            });
+            if (!ok) return;
+
+            const btn = document.getElementById('test-migration-btn');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deploying test VM...';
+            }
+
+            fetch(`/ocm/test-migration/${migrationId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(handleFetchResponse)
+            .then(data => {
+                if (data.success) {
+                    window.toast.success('Test VM deployment started');
+                    setTimeout(() => location.reload(), 600);
+                } else {
+                    window.toast.error(data.error || 'Failed to start test migration');
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fas fa-flask"></i> Test Migration';
+                    }
+                }
+            })
+            .catch(error => {
+                window.toast.error('Network error: ' + error.message);
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-flask"></i> Test Migration';
+                }
+            });
+        }
+
+        // Clean Up Test VM — terminates instances, preserves boot volume.
+        // Hits /ocm/cleanup-test-vm/<id>, which runs terminate_test_instances()
+        // (NOT a Terraform DESTROY — that would kill the hydrated boot volume).
+        async function triggerCleanupTestVm(migrationId) {
+            const ok = await confirmAction({
+                title: 'Clean up the test VM?',
+                message: 'This terminates the test instance(s) on {{ migration.vm_name }} with preserve_boot_volume=True. The RMS stack, Terraform state, and hydrated boot volume are all retained — the next Cutover Now will refresh state and relaunch from the same boot volume.',
+                confirmText: 'Clean Up',
+                cancelText: 'Keep Running',
+                destructive: true,
+            });
+            if (!ok) return;
+
+            const btn = document.getElementById('test-cleanup-btn');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cleaning up...';
+            }
+
+            fetch(`/ocm/cleanup-test-vm/${migrationId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(handleFetchResponse)
+            .then(data => {
+                if (data.success) {
+                    window.toast.success('Test VM cleanup started');
+                    setTimeout(() => location.reload(), 600);
+                } else {
+                    window.toast.error(data.error || 'Failed to start cleanup');
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fas fa-trash"></i> Clean Up Test VM';
+                    }
+                }
+            })
+            .catch(error => {
+                window.toast.error('Network error: ' + error.message);
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-trash"></i> Clean Up Test VM';
+                }
+            });
+        }
+
+        // Test Migration 4-step mini progress bar.
+        // Reinstated from v1.6 UI, re-wired to the awesomeworking sidecar model:
+        // drives purely off migration.test_status + migration.test_rms_job_id.
+        //
+        // Step boundary logic:
+        //   - test_rms_job_id null + test_status=Deploying  -> step 1 active (generate stack)
+        //   - test_rms_job_id set  + test_status=Deploying  -> step 1 done, step 2 active (APPLY)
+        //   - test_status=Running                            -> steps 1,2 done, step 3 active
+        //   - test_status=Cleaning Up                        -> steps 1,2,3 done, step 4 active
+        //   - test_status=Cleaned Up                         -> all 4 steps done
+        //   - test_status=Failed -> active step becomes failed (inferred from test_rms_job_id)
+        //
+        // test_rms_job_id is the reliable step-1 boundary because run_test_migration
+        // persists it via the on_job_created callback the instant create_job returns,
+        // before step6 polling begins. See ocm_migration.py step6_deploy_rms_stack.
+        function updateTestProgress() {
+            const container = document.getElementById('test-progress-steps');
+            if (!container) return;  // Test card not rendered (test_status is null).
+
+            const ts = migrationData.test_status;
+            const hasJob = !!migrationData.test_rms_job_id;
+
+            let completedSteps = 0;
+            let activeStep = 0;
+            let failedStep = 0;
+
+            if (ts === 'Deploying') {
+                if (hasJob) { completedSteps = 1; activeStep = 2; }
+                else        { activeStep = 1; }
+            } else if (ts === 'Running') {
+                completedSteps = 2; activeStep = 3;  // waiting for human validation
+            } else if (ts === 'Cleaning Up') {
+                completedSteps = 3; activeStep = 4;
+            } else if (ts === 'Cleaned Up') {
+                completedSteps = 4;
+            } else if (ts === 'Failed') {
+                // Infer which step blew up from how far state got.
+                if (hasJob) { completedSteps = 1; failedStep = 2; }
+                else        { failedStep = 1; }
+            }
+
+            // Progress line fill (0 / 25 / 50 / 75 / 100 %)
+            const fillPercent = (completedSteps / 4) * 100;
+            const fillEl = document.getElementById('test-progress-fill');
+            if (fillEl) fillEl.style.width = fillPercent + '%';
+
+            // Paint each circle
+            for (let i = 1; i <= 4; i++) {
+                const stepEl = container.querySelector(`.test-step[data-test-step="${i}"]`);
+                if (!stepEl) continue;
+                const circle = stepEl.querySelector('.test-step-circle');
+                stepEl.classList.remove('active', 'completed', 'failed');
+
+                if (i <= completedSteps) {
+                    stepEl.classList.add('completed');
+                    circle.innerHTML = '<i class="fas fa-check"></i>';
+                } else if (i === activeStep) {
+                    stepEl.classList.add('active');
+                    // Step 3 is "awaiting human validation" — show a user icon
+                    // instead of a spinner so it doesn't imply background work.
+                    if (i === 3) {
+                        circle.innerHTML = '<i class="fas fa-user"></i>';
+                    } else {
+                        circle.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                    }
+                } else if (i === failedStep) {
+                    stepEl.classList.add('failed');
+                    circle.innerHTML = '<i class="fas fa-times"></i>';
+                } else {
+                    circle.innerHTML = i.toString();
+                }
+            }
+        }
+
+        // Step patterns to match log sections
+        const stepPatterns = {
+            1: /\[Step 1\/6\].*?(?=\[Step 2\/6\]|$)/s,
+            2: /\[Step 2\/6\].*?(?=\[Step 3\/6\]|$)/s,
+            3: /\[Step 3\/6\].*?(?=\[Step 4\/6\]|$)/s,
+            4: /\[Step 4\/6\].*?(?=\[Step 5\/6\]|$)/s,
+            5: /\[Step 5\/6\].*?(?=\[Step 6\/6\]|$)/s,
+            6: /\[Step 6\/6\].*?$/s
+        };
+
+        function formatLogLine(line) {
+            let className = "log-line";
+            const lineLower = line.toLowerCase();
+
+            if (lineLower.includes('error') || lineLower.includes('failed')) {
+                className = "log-line log-error";
+            } else if (lineLower.includes('success') || lineLower.includes('completed') || line.includes('✓')) {
+                className = "log-line log-success";
+            } else if (lineLower.includes('warning') || line.includes('⚠')) {
+                className = "log-line log-warning";
+            } else if (lineLower.includes('step') || lineLower.includes('info')) {
+                className = "log-line log-info";
+            }
+
+            // Escape HTML
+            const escaped = line.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            return `<div class="${className}">${escaped}</div>`;
+        }
+
+        function parseLogs() {
+            const logs = migrationData.logs || '';
+            if (!logs) return;
+
+            for (let step = 1; step <= 6; step++) {
+                const pattern = stepPatterns[step];
+                const match = logs.match(pattern);
+                const logContainer = document.getElementById(`logs-step-${step}`);
+
+                if (match && match[0]) {
+                    const lines = match[0].split('\n').filter(line => line.trim());
+                    logContainer.innerHTML = lines.map(formatLogLine).join('');
+                } else if (step <= migrationData.current_step) {
+                    logContainer.innerHTML = '<div class="log-line log-info">Step in progress...</div>';
+                }
+            }
+        }
+
+        // Update progress visualization
+        function updateProgress() {
+            const currentStep = migrationData.current_step || 0;
+            const lastCompleted = migrationData.last_completed_step || 0;
+            const status = migrationData.status;
+            const logs = (migrationData.logs || '').toLowerCase();
+
+            console.log('updateProgress called - status:', status, 'currentStep:', currentStep, 'lastCompleted:', lastCompleted);
+
+            // Update main 6-step progress line. Awesomeworking engine transplant
+            // 2026-04-11: main status stays clean ('In-Sync' etc.) during a test
+            // deploy, so the old isTestState freeze branch is gone.
+            const progressPercent = (lastCompleted / 6) * 100;
+            document.getElementById('progress-fill').style.width = progressPercent + '%';
+
+            // Always refresh the test mini-progress bar — it no-ops cleanly
+            // if the test card isn't rendered (i.e. test_status is null).
+            updateTestProgress();
+
+            // Check if current step has failed
+            let stepHasFailed = false;
+            if (status === 'Failed' && currentStep > 0) {
+                console.log('Checking for failed step - currentStep:', currentStep);
+                // Check logs for failure indicators in current step
+                const currentStepPattern = stepPatterns[currentStep];
+                if (currentStepPattern) {
+                    const currentStepMatch = migrationData.logs ? migrationData.logs.match(currentStepPattern) : null;
+                    if (currentStepMatch) {
+                        const currentStepLogs = currentStepMatch[0].toLowerCase();
+                        if (currentStepLogs.indexOf('error') !== -1 ||
+                            currentStepLogs.indexOf('failed') !== -1 ||
+                            currentStepLogs.indexOf('exception') !== -1) {
+                            stepHasFailed = true;
+                        }
+                    }
+                }
+                // If no specific step failure found, mark current step as failed
+                if (!stepHasFailed) {
+                    stepHasFailed = true;
+                }
+            }
+
+            // Update step circles with spinners.
+            // Awesomeworking engine transplant 2026-04-11 follow-up:
+            // the old `if (isTestState) { ... continue }` branch referenced
+            // variables that were removed when the Test-* state machine was
+            // dropped. That was a ReferenceError that aborted the whole
+            // painting pass — the root cause of "no green circles on a
+            // Completed migration". Removed entirely; tests no longer touch
+            // the main 6-step rail.
+            for (let i = 1; i <= 6; i++) {
+                const stepElement = document.querySelector(`.step[data-step="${i}"]`);
+                const stepCircle = stepElement.querySelector('.step-circle');
+                stepElement.classList.remove('active', 'completed', 'failed');
+
+                if (i <= lastCompleted || (status === 'Completed' && i <= 6)) {
+                    // Completed steps
+                    stepElement.classList.add('completed');
+                    stepCircle.innerHTML = '<i class="fas fa-check"></i>';
+                } else if (i === currentStep && status === 'Running') {
+                    // Current active step with spinner
+                    stepElement.classList.add('active');
+                    stepCircle.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                } else if (i === currentStep && status === 'Failed' && stepHasFailed) {
+                    // Failed step - show red X
+                    console.log('Setting step', i, 'as failed with red X');
+                    stepElement.classList.add('failed');
+                    stepCircle.innerHTML = '<i class="fas fa-times"></i>';
+                } else {
+                    // Future steps
+                    stepCircle.innerHTML = i.toString();
+                }
+            }
+
+            // Sync Now overlay on step 4. When a delta sync is running while
+            // the migration is parked at In-Sync, briefly repaint step 4 as
+            // "active with spinner" so the user has a visual cue beyond the
+            // logs that replication is live. This does NOT touch
+            // last_completed_step — it's a cosmetic overlay only, cleared as
+            // soon as the monitor thread clears sync_status on exit.
+            if (migrationData.sync_status === 'Running') {
+                const step4 = document.querySelector('.step[data-step="4"]');
+                if (step4) {
+                    const circle4 = step4.querySelector('.step-circle');
+                    step4.classList.remove('completed', 'failed');
+                    step4.classList.add('active');
+                    if (circle4) {
+                        circle4.innerHTML = '<i class="fas fa-sync fa-spin"></i>';
+                    }
+                }
+            }
+
+            // Parse and update logs
+            parseLogs();
+        }
+
+        // Show step details
+        function showStepDetails(step) {
+            // Hide all step details
+            document.querySelectorAll('.step-details').forEach(el => {
+                el.classList.remove('active');
+            });
+
+            // Show selected step details
+            document.getElementById(`step-details-${step}`).classList.add('active');
+        }
+
+        // Update duration
+        function updateDuration() {
+            if (migrationData.start_timestamp) {
+                const start = new Date(migrationData.start_timestamp);
+                const end = migrationData.end_timestamp ? new Date(migrationData.end_timestamp) : new Date();
+                const diffMs = end - start;
+
+                const hours = Math.floor(diffMs / 3600000);
+                const minutes = Math.floor((diffMs % 3600000) / 60000);
+                const seconds = Math.floor((diffMs % 60000) / 1000);
+
+                let duration = '';
+                if (hours > 0) duration += hours + 'h ';
+                if (minutes > 0) duration += minutes + 'm ';
+                duration += seconds + 's';
+
+                document.getElementById('duration').textContent = duration;
+            }
+        }
+
+        // Auto-scroll logs to bottom
+        function scrollLogsToBottom() {
+            const logsContainer = document.getElementById('logs-content');
+            logsContainer.scrollTop = logsContainer.scrollHeight;
+        }
+
+        // Show/hide auto-refresh warning banner
+        function showPollWarning() {
+            let banner = document.getElementById('poll-warning-banner');
+            if (!banner) {
+                banner = document.createElement('div');
+                banner.id = 'poll-warning-banner';
+                banner.style.cssText = 'background:#fef3cd;color:#856404;border:1px solid #ffc107;padding:10px 16px;border-radius:6px;margin-bottom:16px;display:flex;align-items:center;gap:8px;';
+                banner.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Auto-refresh stopped due to errors. <a href="#" onclick="location.reload();return false;" style="color:#856404;font-weight:600;">Reload page</a>';
+                const container = document.querySelector('.container');
+                if (container) container.insertBefore(banner, container.firstChild);
+            }
+        }
+
+        function hidePollWarning() {
+            const banner = document.getElementById('poll-warning-banner');
+            if (banner) banner.remove();
+        }
+
+        // Fetch updated migration data
+        function refreshMigration() {
+            fetch(`/api/ocm/migration/${migrationData.id}`)
+                .then(handleFetchResponse)
+                .then(data => {
+                    pollFailureCount = 0;
+                    hidePollWarning();
+
+                    const previousStatus = migrationData.status;
+
+                    // Update migration data
+                    migrationData.status = data.status;
+                    migrationData.current_step = data.current_step;
+                    migrationData.last_completed_step = data.last_completed_step;
+                    migrationData.logs = data.logs;
+                    migrationData.end_timestamp = data.end_time ? new Date(data.end_time).getTime() : null;
+                    // Sidecar test-migration fields (awesomeworking engine 2026-04-11)
+                    const previousTestStatus = migrationData.test_status;
+                    migrationData.test_status = data.test_status;
+                    migrationData.test_rms_job_id = data.test_rms_job_id;
+                    migrationData.test_cleanup_job_id = data.test_cleanup_job_id;
+                    migrationData.test_start_time = data.test_start_time;
+                    migrationData.test_end_time = data.test_end_time;
+                    migrationData.test_logs = data.test_logs;
+
+                    // Sync Now sidecar (2026-04-11) — drives step 4 spinner overlay.
+                    const previousSyncStatus = migrationData.sync_status;
+                    migrationData.sync_status = data.sync_status;
+
+                    // Reload page on state transitions (banners change) —
+                    // either main status or sidecar test status flipped.
+                    // Sync status transitions do NOT trigger a reload; the
+                    // step 4 spinner overlay is updated in-place by
+                    // updateProgress() below.
+                    if (previousStatus !== data.status || previousTestStatus !== data.test_status) {
+                        location.reload();
+                        return;
+                    }
+
+                    // Live-update the test log pane without a reload.
+                    const testLogsEl = document.getElementById('test-logs-content');
+                    if (testLogsEl && data.test_logs !== undefined) {
+                        const wasAtBottom = testLogsEl.scrollHeight - testLogsEl.scrollTop <= testLogsEl.clientHeight + 50;
+                        testLogsEl.textContent = data.test_logs || 'No test activity yet.';
+                        if (wasAtBottom) {
+                            testLogsEl.scrollTop = testLogsEl.scrollHeight;
+                        }
+                    }
+
+                    // Update UI
+                    updateProgress();
+                    updateDuration();
+
+                    // Update main logs
+                    const logsContainer = document.getElementById('logs-content');
+                    const wasAtBottom = logsContainer.scrollHeight - logsContainer.scrollTop <= logsContainer.clientHeight + 50;
+                    logsContainer.textContent = data.logs || 'No logs available yet...';
+                    if (wasAtBottom) {
+                        scrollLogsToBottom();
+                    }
+
+                    // Update parsed step logs
+                    parseLogs();
+
+                    // Update status pill
+                    const statusPill = document.querySelector('.overview-value .status-pill');
+                    if (statusPill) {
+                        statusPill.className = `status-pill status-${data.status.toLowerCase()}`;
+                        let icon = '';
+                        if (data.status === 'Running') icon = '<i class="fas fa-circle" style="font-size: 8px;"></i> ';
+                        else if (data.status === 'In-Sync') icon = '<i class="fas fa-sync" style="font-size: 10px;"></i> ';
+                        else if (data.status === 'Cutting-Over') icon = '<i class="fas fa-rocket" style="font-size: 10px;"></i> ';
+                        else if (data.status === 'Cancelled') icon = '<i class="fas fa-ban" style="font-size: 10px;"></i> ';
+                        statusPill.innerHTML = icon + data.status;
+                    }
+
+                    // Update current step display
+                    const stepDisplay = document.getElementById('current-step');
+                    if (stepDisplay) {
+                        stepDisplay.textContent = `${data.current_step} / 6`;
+                    }
+                })
+                .catch(error => {
+                    pollFailureCount++;
+                    console.error('Auto-refresh failed:', error);
+                    if (pollFailureCount >= 3) {
+                        showPollWarning();
+                    }
+                });
+        }
+
+        // Initialize
+        updateProgress();
+        updateDuration();
+        scrollLogsToBottom();
+
+        // Auto-refresh every 3 seconds if the migration or any of its
+        // sidecars are active.  Awesomeworking engine transplant 2026-04-11:
+        // main status stays clean during tests/syncs; activity is tracked
+        // via the sidecar columns test_status and sync_status.
+        const mainActive = ['Running', 'Pending', 'Cutting-Over'].includes(migrationData.status);
+        const testActive = ['Deploying', 'Cleaning Up'].includes(migrationData.test_status);
+        const syncActive = migrationData.sync_status === 'Running';
+        if (mainActive || testActive || syncActive) {
+            setInterval(refreshMigration, 3000);
+            setInterval(updateDuration, 1000);
+        }
+    </script>
+
+    {% include '_footer.html' %}
+</body>
+</html>

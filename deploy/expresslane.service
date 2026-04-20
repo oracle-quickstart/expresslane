@@ -1,0 +1,32 @@
+[Unit]
+Description=ExpressLane VM Migration Tool
+After=network.target
+Wants=network.target
+
+[Service]
+Type=notify
+User=opc
+Group=opc
+
+# Critical: without HOME, os.path.expanduser('~') breaks and OCI SDK
+# cannot find ~/.oci/config
+Environment="HOME=/home/opc"
+Environment="PATH=/opt/expresslane/venv/bin:/usr/local/bin:/usr/bin"
+
+WorkingDirectory=/opt/expresslane
+ExecStart=/opt/expresslane/venv/bin/gunicorn -c gunicorn.conf.py app:app
+ExecReload=/bin/kill -s HUP $MAINPID
+
+Restart=always
+RestartSec=3
+KillMode=mixed
+TimeoutStopSec=30
+
+# Hardening (ProtectSystem=strict removed — it creates a mount namespace
+# that fails if ~/.oci doesn't exist yet, which is the case on fresh installs
+# before the setup wizard runs)
+PrivateTmp=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

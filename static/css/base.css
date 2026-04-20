@@ -1,0 +1,295 @@
+/*
+ * ExpressLane shared design system
+ * Sprint 2 / Item #3 — UI improvements plan, 2026-04-11.
+ *
+ * Scope of this file on Day 1:
+ *   - CSS custom properties (palette) — foundation for Sprint 4 dark mode
+ *   - Status pill base (verified identical across templates before extraction)
+ *   - Empty state + freshness indicator (introduced in Sprint 1, deduped here)
+ *   - :focus-visible baseline (Sprint 4 accessibility pre-work)
+ *
+ * What is deliberately NOT here yet: .btn, .card, .card-header, .card-body,
+ * .card-title, .table — these have drifted into 3–5 variants across
+ * templates and extracting them naively would cause visual regressions.
+ * Sprints 3 and 4 will migrate them incrementally as they touch each page.
+ *
+ * Cascade note: this file is loaded via _navbar.html which is included at
+ * the top of <body> on every page, so it appears LATER in document order
+ * than per-template <style> blocks in <head>. At equal specificity, rules
+ * here will win. Don't add rules that conflict with per-template styles
+ * until those per-template styles are removed in tandem.
+ */
+
+:root {
+    /* Palette */
+    --bg:            #f5f3ef;
+    --fg:            #161513;
+    --fg-muted:      #6b6969;
+    --fg-subtle:     #9ca3af;
+    --accent:        #0572ce;
+    --accent-soft:   #dbeafe;
+    --border:        #e9e8e6;
+    --border-strong: #d1cec9;
+    --card-bg:       #ffffff;
+    --nav-bg:        #312d2a;
+
+    /* Semantic colors */
+    --success:    #0e6333;
+    --success-bg: #e6f4ea;
+    --warning:    #c75300;
+    --warning-bg: #fff4e6;
+    --danger:     #8e1f1f;
+    --danger-bg:  #feebeb;
+    --info:       #0572ce;
+    --info-bg:    #dbeafe;
+
+    /* Freshness dot semantic colors */
+    --fresh-ok:         #10b981;
+    --fresh-stale:      #eab308;
+    --fresh-refreshing: var(--accent);
+    --fresh-idle:       var(--fg-subtle);
+}
+
+/* ----- Status pill base (verified identical across templates) ----- */
+.status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+/* ----- Empty state (Sprint 1) ----- */
+.empty-state {
+    text-align: center;
+    padding: 72px 24px;
+    color: var(--fg-muted);
+}
+.empty-state .empty-icon {
+    font-size: 56px;
+    color: var(--accent);
+    opacity: 0.35;
+    margin-bottom: 20px;
+}
+.empty-state h3 {
+    font-size: 20px;
+    color: var(--fg);
+    margin: 0 0 8px 0;
+    font-weight: 600;
+}
+.empty-state p {
+    font-size: 14px;
+    margin: 0 auto 24px auto;
+    max-width: 460px;
+    line-height: 1.6;
+}
+
+/* ----- Auto-refresh freshness indicator (Sprint 1) ----- */
+.cache-hint {
+    font-size: 11px;
+    color: var(--fg-muted);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 12px;
+    font-weight: 400;
+}
+.cache-hint .cache-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--fresh-ok);
+    display: inline-block;
+}
+.cache-hint .cache-dot.stale       { background: var(--fresh-stale); }
+.cache-hint .cache-dot.refreshing  {
+    background: var(--fresh-refreshing);
+    animation: refreshPulse 1s ease-in-out infinite;
+}
+.cache-hint .cache-dot.idle        { background: var(--fresh-idle); }
+
+@keyframes refreshPulse {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.4; }
+}
+
+/* ----- Accessibility: visible focus outline on every focusable element ----- */
+/* Sprint 2 accessibility baseline. Sprint 4 item #7 will refine further. */
+:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 3px;
+}
+/* Don't outline elements that have their own hover/focus treatment (navbar etc.) */
+.nav-link:focus-visible,
+.nav-icon-btn:focus-visible {
+    outline-color: rgba(255,255,255,0.7);
+}
+
+/* ----- Toast notifications (Sprint 3 Item #5, 2026-04-11) ----- */
+/* Stacked, auto-dismiss, click-to-dismiss. Anchored bottom-right. */
+.toast-container {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 9000;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+    pointer-events: none;  /* children opt back in */
+    max-width: calc(100vw - 48px);
+}
+.toast {
+    pointer-events: auto;
+    min-width: 280px;
+    max-width: 420px;
+    padding: 12px 14px 12px 16px;
+    border-radius: 6px;
+    background: #fff;
+    color: var(--fg);
+    border-left: 4px solid var(--info);
+    box-shadow: 0 6px 24px rgba(16, 18, 22, 0.12), 0 2px 6px rgba(16, 18, 22, 0.08);
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    font-size: 13px;
+    line-height: 1.45;
+    animation: toastSlideIn 0.25s ease-out;
+}
+.toast.toast-leaving {
+    animation: toastSlideOut 0.2s ease-in forwards;
+}
+.toast.success { border-left-color: var(--success); }
+.toast.success .toast-icon { color: var(--success); }
+.toast.error   { border-left-color: var(--danger); }
+.toast.error   .toast-icon { color: var(--danger); }
+.toast.warn    { border-left-color: var(--warning); }
+.toast.warn    .toast-icon { color: var(--warning); }
+.toast.info    { border-left-color: var(--info); }
+.toast.info    .toast-icon { color: var(--info); }
+.toast .toast-icon {
+    font-size: 16px;
+    line-height: 1.3;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+.toast .toast-body {
+    flex: 1;
+    color: var(--fg);
+    word-break: break-word;
+}
+.toast .toast-close {
+    background: transparent;
+    border: none;
+    color: var(--fg-muted);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0 2px;
+    margin-left: 4px;
+    flex-shrink: 0;
+    opacity: 0.6;
+    transition: opacity 0.15s ease;
+}
+.toast .toast-close:hover { opacity: 1; }
+
+@keyframes toastSlideIn {
+    from { transform: translateX(24px); opacity: 0; }
+    to   { transform: translateX(0);    opacity: 1; }
+}
+@keyframes toastSlideOut {
+    from { transform: translateX(0);    opacity: 1; }
+    to   { transform: translateX(24px); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .toast, .toast.toast-leaving { animation: none; }
+}
+
+/* ----- Confirm dialog modal (Sprint 3 Item #4, 2026-04-11) ----- */
+.confirm-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(16, 18, 22, 0.5);
+    z-index: 9500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    animation: confirmFade 0.15s ease-out;
+}
+.confirm-dialog {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 24px 48px rgba(16, 18, 22, 0.24), 0 4px 12px rgba(16, 18, 22, 0.12);
+    max-width: 460px;
+    width: 100%;
+    padding: 24px;
+    animation: confirmPop 0.18s ease-out;
+    color: var(--fg);
+}
+.confirm-dialog .confirm-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--fg);
+    margin: 0 0 8px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.confirm-dialog .confirm-title .confirm-icon {
+    font-size: 18px;
+}
+.confirm-dialog.destructive .confirm-title .confirm-icon { color: var(--danger); }
+.confirm-dialog:not(.destructive) .confirm-title .confirm-icon { color: var(--info); }
+.confirm-dialog .confirm-message {
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: var(--fg-muted);
+    margin: 0 0 20px 0;
+    white-space: pre-line;
+}
+.confirm-dialog .confirm-message strong { color: var(--fg); }
+.confirm-dialog .confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+.confirm-dialog .confirm-btn {
+    padding: 8px 18px;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: background 0.15s ease, border-color 0.15s ease;
+    font-family: inherit;
+}
+.confirm-dialog .confirm-btn-cancel {
+    background: #fff;
+    color: var(--fg);
+    border-color: var(--border-strong);
+}
+.confirm-dialog .confirm-btn-cancel:hover { background: #f4f4f2; }
+.confirm-dialog .confirm-btn-ok {
+    background: var(--accent);
+    color: #fff;
+}
+.confirm-dialog .confirm-btn-ok:hover { background: #045ca8; }
+.confirm-dialog.destructive .confirm-btn-ok {
+    background: var(--danger);
+}
+.confirm-dialog.destructive .confirm-btn-ok:hover { background: #6e1616; }
+@keyframes confirmFade {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+@keyframes confirmPop {
+    from { transform: scale(0.96); opacity: 0; }
+    to   { transform: scale(1);    opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .confirm-backdrop, .confirm-dialog { animation: none; }
+}

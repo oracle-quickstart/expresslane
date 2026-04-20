@@ -1,0 +1,220 @@
+<!-- Copyright (c) 2024, 2025, 2026, Oracle and/or its affiliates.
+     Licensed under the Universal Permissive License v1.0 as shown at
+     https://oss.oracle.com/licenses/upl/ -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ExpressLane | Sign In</title>
+    <link href="{{ url_for('static', filename='fontawesome/css/all.min.css') }}" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Oracle Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            background: #f5f3ef;
+            color: #161513;
+            font-size: 14px;
+            line-height: 1.5;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .login-header {
+            background: #312d2a;
+            width: 100%;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .login-header img {
+            height: 38px;
+            width: auto;
+        }
+
+        .login-header .brand-text {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .login-header .brand-name {
+            color: #ffffff;
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            line-height: 1.1;
+        }
+
+        .login-header .brand-tagline {
+            color: #ffb700;
+            font-size: 11px;
+            font-weight: 500;
+            font-style: italic;
+            letter-spacing: 0.2px;
+            line-height: 1.1;
+        }
+
+        .oracle-red {
+            color: #f80000;
+            font-style: normal;
+            font-weight: 700;
+        }
+
+        .login-main {
+            width: 100%;
+            max-width: 400px;
+            padding: 60px 24px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .lock-icon {
+            width: 56px;
+            height: 56px;
+            background: #312d2a;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .lock-icon i {
+            color: #ffb700;
+            font-size: 22px;
+        }
+
+        .login-title {
+            font-size: 22px;
+            font-weight: 500;
+            color: #161513;
+            margin-bottom: 28px;
+        }
+
+        .login-card {
+            background: #fff;
+            border-radius: 8px;
+            padding: 28px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            width: 100%;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            font-weight: 500;
+            color: #161513;
+            margin-bottom: 6px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #d1cec9;
+            border-radius: 4px;
+            font-size: 14px;
+            background: #fff;
+            transition: border-color 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #0572ce;
+            box-shadow: 0 0 0 2px rgba(5,114,206,0.1);
+        }
+
+        .btn-primary {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            background: #0572ce;
+            color: #fff;
+            transition: background 0.2s;
+        }
+
+        .btn-primary:hover {
+            background: #045a9e;
+        }
+
+        .alert-error {
+            background: #fce8e8;
+            color: #8b2635;
+            border: 1px solid #d4a8a8;
+            padding: 12px 16px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-header">
+        <img src="{{ url_for('static', filename='ExpressLaneLogo.svg') }}" alt="ExpressLane">
+        <div class="brand-text">
+            <span class="brand-name">ExpressLane</span>
+            <span class="brand-tagline">The fast path inside <span class="oracle-red">Oracle</span></span>
+        </div>
+    </div>
+
+    <div class="login-main">
+        <div class="lock-icon">
+            <i class="fas fa-lock"></i>
+        </div>
+        <h1 class="login-title">Sign In</h1>
+
+        <div class="login-card">
+            {% if error %}
+            <div class="alert-error">
+                <i class="fas fa-exclamation-triangle"></i>
+                {{ error }}
+            </div>
+            {% endif %}
+
+            <form method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="form-group">
+                    <label for="username" class="form-label">Username</label>
+                    <input type="text" id="username" name="username" class="form-input"
+                           autocomplete="username" autofocus required>
+                </div>
+
+                <div class="form-group">
+                    <label for="password" class="form-label">Password</label>
+                    <input type="password" id="password" name="password" class="form-input"
+                           autocomplete="current-password" required>
+                </div>
+
+                <button type="submit" class="btn-primary">
+                    <i class="fas fa-sign-in-alt"></i> Sign In
+                </button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

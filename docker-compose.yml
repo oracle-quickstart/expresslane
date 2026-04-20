@@ -1,0 +1,36 @@
+services:
+  app:
+    build: .
+    container_name: expresslane-app
+    restart: unless-stopped
+    user: "${UID:-1000}:${GID:-1000}"
+    volumes:
+      - ./instance:/app/instance:z
+      - ./cache:/app/cache:z
+      - ./config.json:/app/config.json:z
+      - /home/opc/.oci:/home/expresslane/.oci:ro,z
+    environment:
+      - SECURE_COOKIES=${SECURE_COOKIES:-false}
+      - EXPRESSLANE_STATE_DIR=/app/cache/.expresslane
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/login')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  nginx:
+    image: docker.io/library/nginx:1.25-alpine
+    container_name: expresslane-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ${NGINX_CONF:-./deploy/nginx-docker.conf}:/etc/nginx/nginx.conf:ro,z
+      - ./static:/app/static:ro,z
+      - ./certs:/etc/nginx/certs:ro,z
+    depends_on:
+      app:
+        condition: service_healthy
+

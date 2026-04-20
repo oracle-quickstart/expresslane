@@ -1,0 +1,48 @@
+<!-- Copyright (c) 2024, 2025, 2026, Oracle and/or its affiliates.
+     Licensed under the Universal Permissive License v1.0 as shown at
+     https://oss.oracle.com/licenses/upl/ -->
+<!-- Fixed Footer -->
+<footer class="site-footer">
+    <span>ExpressLane v{{ version }}</span>
+    <span class="footer-divider">|</span>
+    <a href="https://github.com/oracle-quickstart/expresslane/issues" target="_blank" class="footer-link">Report an issue</a>
+    <span class="footer-divider">|</span>
+    <a href="https://github.com/oracle-quickstart/expresslane" target="_blank" class="footer-link">GitHub</a>
+</footer>
+
+<style>
+    .site-footer {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 36px;
+        background: #2c2c2c;
+        color: #b0b0b0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        font-size: 12px;
+        z-index: 999;
+    }
+
+    .footer-divider {
+        color: #666;
+    }
+
+    .footer-link {
+        color: #b0b0b0;
+        text-decoration: none;
+    }
+
+    .footer-link:hover {
+        color: #ffffff;
+        text-decoration: underline;
+    }
+
+    /* Adjust main content to account for fixed footer */
+    .main-content {
+        padding-bottom: 56px !important;
+    }
+</style>
