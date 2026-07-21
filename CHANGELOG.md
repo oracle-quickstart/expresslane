@@ -4,6 +4,27 @@ All notable changes to ExpressLane are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] — 2026-07-21
+
+### Fixed
+
+- **OCM advanced config (shape, availability domain, public IP) silently discarded on every migration.** ([#2](https://github.com/oracle-quickstart/expresslane/issues/2)) Three compounding bugs in the plan-page-to-deployed-VM path meant a user's shape, AD, and "Assign Public IP" choices never reached the deployed instance — OCM's own recommendation was used instead every time:
+  - The advanced-config apply step ran *before* the migration asset that creates the target asset existed, so there was structurally nothing yet to configure. Moved it to run after asset creation, with a bounded wait for the target asset to actually appear.
+  - The migration asset's availability domain was resolved independently of the user's per-VM AD choice. A later attempt to set the target asset to a different AD was rejected by OCM outright — one atomic API call, so shape and public IP were discarded along with it. Migration asset creation now honors the same per-VM AD selection.
+  - The target asset could still be in a `CREATING` lifecycle state when the config update was attempted, causing a transient 409 conflict. Added a wait for `ACTIVE` state first.
+
+  All three verified together on a live migration: correct shape, AD, and public IP on the deployed instance, with the migrated application reachable end-to-end.
+
+### Added
+
+- **Per-VM Availability Domain picker** on the plan page (previously hardcoded to a single default), backed by a new `/api/ocm/availability-domains` endpoint that flags which ADs actually support the selected shape.
+- **`/api/ocm/shape-limits` endpoint** so the OCPU/memory pickers respect each shape's real limits instead of one global range — some shapes (e.g. `VM.Optimized3.Flex`) have much lower ceilings than others.
+- **Migration delete feature** — removes a migration's plan, assets, project, and optionally its Resource Manager stack, so cleaning up toward the OCM per-tenancy project limit no longer requires manual OCI CLI work. Deleting the RMS stack only removes Terraform state; any instances already deployed keep running untouched.
+
+### Changed
+
+- **Restricted the OCM plan page's shape dropdown to officially supported shapes**, per the [Cloud Migrations specifications](https://docs.oracle.com/en-us/iaas/Content/cloud-migration/cloud-migration-requirements-specifications.htm). Removed `VM.DenseIO.E4/E5/E6.*` and all bare-metal (`BM.*`) shapes — the general compute shape picker offers them, but OCM's recommendation engine and migration pipeline aren't validated against them, and they can fail during image hydration or launch. Shortened dropdown labels to just the shape name (full description still available as a tooltip) so the Public IP column no longer requires horizontal scrolling to reach.
+
 ## [1.2.1] — 2026-04-15
 
 ### Added
