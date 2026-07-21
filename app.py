@@ -23,11 +23,12 @@ from io import StringIO
 from datetime import datetime, timedelta
 from flask import Flask, render_template, request, jsonify, redirect, url_for, session
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.exceptions import HTTPException
 from flask_wtf.csrf import CSRFProtect, CSRFError
 from collections import defaultdict
 import oci
 from config import config, is_oci_cli_configured
-from oci_clients import get_oci_client, get_oci_config
+from oci_clients import get_oci_client, get_oci_config, select_availability_domain
 from models import db, OCMMigration
 from version import __version__
 import upgrade_check  # lightweight, opt-out version check — see upgrade_check.py
@@ -486,86 +487,6 @@ def run_ocm_migration(migration_id, dest_compartment=None, dest_vcn=None, dest_s
                 output.write(f"\nSkipping Step 2 (already completed)\n")
                 output.write(f"Plan OCID: {migration.plan_ocid}\n\n")
 
-            # Step 2.5: Apply Advanced Configuration to Target Assets
-            if vm_config and start_step <= 3:
-                output.write(f"\n{'='*80}\n")
-                output.write(f"[Step 2.5/6] Applying Advanced Configuration to Target Assets\n")
-                output.write(f"{'='*80}\n")
-
-                vm_configs = vm_config.get('vm_configs', {})
-
-                if vm_configs:
-                    output.write(f"Found custom configurations for {len(vm_configs)} VM(s)\n\n")
-
-                    try:
-                        # Get target assets from the plan
-                        target_assets = clients['migration'].list_target_assets(migration_plan_id=migration.plan_ocid)
-
-                        for ta in target_assets.data.items:
-                            # Get target asset details
-                            ta_detail = clients['migration'].get_target_asset(target_asset_id=ta.id)
-
-                            # Get the source asset ID from the migration asset
-                            if hasattr(ta_detail.data, 'migration_asset') and hasattr(ta_detail.data.migration_asset, 'source_asset_id'):
-                                source_id = ta_detail.data.migration_asset.source_asset_id
-
-                                # Find matching VM in our list
-                                vm_name = None
-                                for vm in vms_list:
-                                    if vm['inventory_asset_id'] == source_id:
-                                        vm_name = vm['vm_name']
-                                        break
-
-                                if source_id in vm_configs:
-                                    config_data = vm_configs[source_id]
-                                    output.write(f"\nConfiguring target asset for {vm_name}:\n")
-
-                                    try:
-                                        # Build user_spec with custom configuration
-                                        user_spec = None
-
-                                        if 'shape' in config_data:
-                                            user_spec = oci.cloud_migrations.models.LaunchInstanceDetails(
-                                                shape=config_data['shape']
-                                            )
-
-                                            # Add flex shape config if applicable
-                                            if 'ocpus' in config_data and 'memory_gb' in config_data:
-                                                user_spec.shape_config = oci.cloud_migrations.models.LaunchInstanceShapeConfigDetails(
-                                                    ocpus=float(config_data['ocpus']),
-                                                    memory_in_gbs=float(config_data['memory_gb'])
-                                                )
-                                                output.write(f"  - Shape: {config_data['shape']}\n")
-                                                output.write(f"  - OCPUs: {config_data['ocpus']}\n")
-                                                output.write(f"  - Memory: {config_data['memory_gb']} GB\n")
-                                            else:
-                                                output.write(f"  - Shape: {config_data['shape']}\n")
-
-                                        # Build update details
-                                        update_details = oci.cloud_migrations.models.UpdateVmTargetAssetDetails(
-                                            type='INSTANCE',
-                                            user_spec=user_spec
-                                        )
-
-                                        # Update the target asset
-                                        clients['migration'].update_target_asset(
-                                            target_asset_id=ta.id,
-                                            update_target_asset_details=update_details
-                                        )
-                                        output.write(f"  ✓ Custom configuration applied to target asset\n")
-
-                                    except Exception as e:
-                                        output.write(f"  Warning: Could not apply configuration: {e}\n")
-                                        import traceback
-                                        output.write(f"  Error details: {traceback.format_exc()}\n")
-
-                    except Exception as e:
-                        output.write(f"Warning: Could not apply target asset configurations: {e}\n")
-                        import traceback
-                        output.write(f"Error details: {traceback.format_exc()}\n")
-
-                    output.write(f"\n✓ Advanced configuration complete - target assets updated\n")
-
             # Step 3: Add Asset(s) to Project (or use existing from temp migration)
             if start_step <= 3:
                 migration.current_step = 3
@@ -633,10 +554,22 @@ def run_ocm_migration(migration_id, dest_compartment=None, dest_vcn=None, dest_s
                     else:
                         # Asset doesn't exist - add it
                         output.write(f"\n--- Adding Asset {i+1}/{len(vms_list)}: {vm_name} ---\n")
+
+                        # The migration asset's AD is fixed at creation and can never
+                        # be changed — Step 3.5 later tries to set the target asset's
+                        # AD from this same per-VM config, and OCM rejects that update
+                        # outright if it doesn't match. Resolve the user's choice here
+                        # too so the two agree from the start.
+                        ad_override = None
+                        if vm_config:
+                            vm_cfg_entry = vm_config.get('vm_configs', {}).get(inventory_asset_id, {})
+                            ad_override = vm_cfg_entry.get('availability_domain') or None
+
                         asset_ocid = ocm_migration.step3_add_asset(
                             clients, migration.project_ocid, vm_name,
                             inventory_asset_id, bucket_name, source_compartment_id,
                             replication_schedule_id=replication_schedule_id,
+                            availability_domain_override=ad_override,
                             output_stream=output
                         )
                         asset_ocids.append({
@@ -664,7 +597,180 @@ def run_ocm_migration(migration_id, dest_compartment=None, dest_vcn=None, dest_s
                     output.write(f"Asset OCID: {migration.asset_ocid}\n")
                 output.write(f"\n")
 
-            # Configuration already applied in Step 1.5 before plan creation
+            # Step 3.5: Apply Advanced Configuration to Target Assets
+            #
+            # This MUST run after Step 3, not before it. Target assets are
+            # derived from migration assets, and migration assets are only
+            # created by step3_add_asset() above — so before Step 3 runs,
+            # there is structurally nothing for OCM to have generated yet.
+            # An earlier version of this ran between Step 2 and Step 3 and
+            # polled for up to 180s waiting for a target asset that could
+            # never appear, then correctly reported the failure — but every
+            # migration still deployed with OCM's defaults instead of the
+            # user's chosen shape/AD/public-IP. Confirmed by inspecting a
+            # real migration: recommended-spec matched what deployed, and
+            # user-spec was entirely null.
+            if vm_config and start_step <= 4:
+                output.write(f"\n{'='*80}\n")
+                output.write(f"[Step 3.5/6] Applying Advanced Configuration to Target Assets\n")
+                output.write(f"{'='*80}\n")
+
+                vm_configs = vm_config.get('vm_configs', {})
+
+                if vm_configs:
+                    output.write(f"Found custom configurations for {len(vm_configs)} VM(s)\n\n")
+
+                    # Track how many target assets actually received config, so the
+                    # completion message reflects reality instead of always claiming
+                    # success (which previously masked a silent no-op).
+                    applied_count = 0
+
+                    try:
+                        # Resolve the launch availability domain once for this plan.
+                        # Ax shapes (e.g. VM.Standard.E6.Ax.Flex) are not offered in
+                        # every AD, so pinning this rather than letting OCI pick keeps
+                        # those shapes deployable.
+                        try:
+                            identity_client = get_oci_client(oci.identity.IdentityClient)
+                            launch_ads = identity_client.list_availability_domains(
+                                compartment_id=dest_compartment_id
+                            )
+                            launch_ad = select_availability_domain(launch_ads.data)
+                            output.write(f"Launch availability domain: {launch_ad}\n")
+                        except Exception as e:
+                            launch_ad = None
+                            output.write(f"Warning: could not resolve availability domain ({e}); OCI will choose\n")
+
+                        # Target assets are generated ASYNCHRONOUSLY once the migration
+                        # asset exists (i.e. after Step 3, which we now run after). Poll
+                        # briefly for the link to appear rather than assuming it's instant.
+                        # A linked target asset can still be CREATING for a few seconds
+                        # after that — update_target_asset rejects writes to a non-ACTIVE
+                        # target asset with a 409 ("Invalid State Transition"), so a
+                        # target asset only counts as ready once it's both linked AND
+                        # ACTIVE.
+                        expected_ids = set(vm_configs.keys())
+                        wait_deadline = time.time() + 180
+                        linked_assets = {}
+                        while True:
+                            linked_assets = {}
+                            for ta in clients['migration'].list_target_assets(
+                                    migration_plan_id=migration.plan_ocid).data.items:
+                                ta_detail = clients['migration'].get_target_asset(target_asset_id=ta.id)
+                                ma = getattr(ta_detail.data, 'migration_asset', None)
+                                sid = getattr(ma, 'source_asset_id', None) if ma else None
+                                if sid and ta_detail.data.lifecycle_state == 'ACTIVE':
+                                    linked_assets[sid] = ta
+                            if expected_ids.issubset(linked_assets) or time.time() >= wait_deadline:
+                                break
+                            ready = len(expected_ids & set(linked_assets))
+                            output.write(f"  Waiting for target assets to be generated "
+                                         f"({ready}/{len(expected_ids)} ready)...\n")
+                            time.sleep(10)
+
+                        if not expected_ids.issubset(linked_assets):
+                            ready = len(expected_ids & set(linked_assets))
+                            output.write(f"  Warning: only {ready}/{len(expected_ids)} target assets "
+                                         f"became ready within timeout; applying to those available\n")
+
+                        for ta in linked_assets.values():
+                            # Get target asset details
+                            ta_detail = clients['migration'].get_target_asset(target_asset_id=ta.id)
+
+                            # Get the source asset ID from the migration asset
+                            if hasattr(ta_detail.data, 'migration_asset') and hasattr(ta_detail.data.migration_asset, 'source_asset_id'):
+                                source_id = ta_detail.data.migration_asset.source_asset_id
+
+                                # Find matching VM in our list
+                                vm_name = None
+                                for vm in vms_list:
+                                    if vm['inventory_asset_id'] == source_id:
+                                        vm_name = vm['vm_name']
+                                        break
+
+                                if source_id in vm_configs:
+                                    config_data = vm_configs[source_id]
+                                    output.write(f"\nConfiguring target asset for {vm_name}:\n")
+
+                                    try:
+                                        # Build user_spec with custom configuration
+                                        user_spec = None
+
+                                        if 'shape' in config_data:
+                                            user_spec = oci.cloud_migrations.models.LaunchInstanceDetails(
+                                                shape=config_data['shape']
+                                            )
+
+                                            # Add flex shape config if applicable
+                                            if 'ocpus' in config_data and 'memory_gb' in config_data:
+                                                user_spec.shape_config = oci.cloud_migrations.models.LaunchInstanceShapeConfigDetails(
+                                                    ocpus=float(config_data['ocpus']),
+                                                    memory_in_gbs=float(config_data['memory_gb'])
+                                                )
+                                                output.write(f"  - Shape: {config_data['shape']}\n")
+                                                output.write(f"  - OCPUs: {config_data['ocpus']}\n")
+                                                output.write(f"  - Memory: {config_data['memory_gb']} GB\n")
+                                            else:
+                                                output.write(f"  - Shape: {config_data['shape']}\n")
+
+                                        if 'assign_public_ip' in config_data:
+                                            if user_spec is None:
+                                                user_spec = oci.cloud_migrations.models.LaunchInstanceDetails()
+                                            user_spec.create_vnic_details = oci.cloud_migrations.models.CreateVnicDetails(
+                                                assign_public_ip=bool(config_data['assign_public_ip'])
+                                            )
+                                            output.write(f"  - Assign Public IP: {bool(config_data['assign_public_ip'])}\n")
+
+                                        # Pin placement. Fault domain names repeat inside
+                                        # every AD, so a fault domain only means something
+                                        # once the availability domain is fixed.
+                                        chosen_ad = config_data.get('availability_domain') or launch_ad
+                                        if chosen_ad:
+                                            if user_spec is None:
+                                                user_spec = oci.cloud_migrations.models.LaunchInstanceDetails()
+                                            user_spec.availability_domain = chosen_ad
+                                            output.write(f"  - Availability Domain: {chosen_ad}\n")
+
+                                        fault_domain = config_data.get('fault_domain')
+                                        if fault_domain and fault_domain != 'AUTO':
+                                            if user_spec is None:
+                                                user_spec = oci.cloud_migrations.models.LaunchInstanceDetails()
+                                            user_spec.fault_domain = fault_domain
+                                            output.write(f"  - Fault Domain: {fault_domain}\n")
+
+                                        # Build update details
+                                        update_details = oci.cloud_migrations.models.UpdateVmTargetAssetDetails(
+                                            type='INSTANCE',
+                                            user_spec=user_spec
+                                        )
+
+                                        # Update the target asset
+                                        clients['migration'].update_target_asset(
+                                            target_asset_id=ta.id,
+                                            update_target_asset_details=update_details
+                                        )
+                                        output.write(f"  ✓ Custom configuration applied to target asset\n")
+                                        applied_count += 1
+
+                                    except Exception as e:
+                                        output.write(f"  Warning: Could not apply configuration: {e}\n")
+                                        import traceback
+                                        output.write(f"  Error details: {traceback.format_exc()}\n")
+
+                    except Exception as e:
+                        output.write(f"Warning: Could not apply target asset configurations: {e}\n")
+                        import traceback
+                        output.write(f"Error details: {traceback.format_exc()}\n")
+
+                    if applied_count == len(vm_configs):
+                        output.write(f"\n✓ Advanced configuration applied to {applied_count} target asset(s)\n")
+                    elif applied_count > 0:
+                        output.write(f"\n⚠ Advanced configuration applied to only {applied_count} of "
+                                     f"{len(vm_configs)} target asset(s); the rest will use OCM defaults\n")
+                    else:
+                        output.write(f"\n✗ ERROR: Advanced configuration was NOT applied to any target asset. "
+                                     f"OCM will deploy its recommended shape, availability domain, and network "
+                                     f"defaults instead of your selections.\n")
 
             # Step 4: Replicate Asset(s) (LONGEST STEP - can take hours)
             if start_step <= 4:
@@ -2145,7 +2251,7 @@ def prepare_advanced_config():
 
         # Get availability domain
         ads = identity_client.list_availability_domains(compartment_id=compartment_id)
-        availability_domain = ads.data[0].name if ads.data else "KoMy:US-ASHBURN-AD-1"
+        availability_domain = select_availability_domain(ads.data)
 
         # Get bucket name
         bucket_name = config.get('OCM_REPLICATION_BUCKET_OCID', 'ocm_replication')
@@ -3044,6 +3150,168 @@ def get_vcns():
         return _oci_error_response(e, 'list VCNs')
     except Exception as e:
         logger.exception('Failed to list VCNs')
+        return jsonify({'error': 'An internal error occurred', 'retryable': False}), 500
+
+
+@app.route('/api/ocm/migration/<int:id>/delete', methods=['POST'])
+def delete_migration(id):
+    """Tear down a migration: plan, assets, project, and optionally its RMS stack.
+
+    Deleting the stack removes Terraform state only — instances the migration
+    deployed keep running and are untouched.
+    """
+    try:
+        import ocm_migration
+
+        migration = OCMMigration.query.get_or_404(id)
+
+        payload = request.get_json(silent=True) or {}
+        delete_stack = bool(payload.get('delete_stack', True))
+
+        if not migration.project_ocid:
+            # Nothing in OCI to clean up — just drop the local record
+            db.session.delete(migration)
+            db.session.commit()
+            return jsonify({'success': True, 'summary': {'note': 'No OCI project; local record removed'}})
+
+        output = StringIO()
+        summary = ocm_migration.delete_migration_resources(
+            project_ocid=migration.project_ocid,
+            rms_stack_ocid=migration.rms_stack_ocid,
+            delete_stack=delete_stack,
+            output_stream=output
+        )
+
+        # Only drop the local row once the OCI project is actually gone,
+        # so a partial failure stays visible in the UI.
+        if summary.get('migration'):
+            db.session.delete(migration)
+            db.session.commit()
+        else:
+            db.session.rollback()
+
+        return jsonify({
+            'success': bool(summary.get('migration')),
+            'summary': summary,
+            'log': output.getvalue()
+        })
+    except HTTPException:
+        # Let get_or_404 and friends return their real status, not a 500
+        raise
+    except Exception as e:
+        db.session.rollback()
+        logger.exception('Failed to delete migration %s', id)
+        return jsonify({'error': 'An internal error occurred'}), 500
+
+
+@app.route('/api/ocm/shape-limits', methods=['GET'])
+def get_shape_limits():
+    """Get OCPU/memory limits for flexible shapes.
+
+    Limits vary widely by shape (VM.Optimized3.Flex tops out at 18 OCPUs while
+    VM.Standard.E5.Flex allows 126), so the plan page has to constrain its
+    OCPU/memory pickers per selected shape rather than using one global range.
+    """
+    try:
+        compartment_id = request.args.get('compartment_id')
+        region = request.args.get('region', config.get('OCM_REGION', 'us-ashburn-1'))
+
+        if not compartment_id:
+            return jsonify({'error': 'compartment_id required'}), 400
+
+        compute_client = get_oci_client(oci.core.ComputeClient, region=region)
+
+        # A compartment-wide list omits shapes absent from some ADs (Ax shapes
+        # are not in AD-1), so gather per-AD and merge to cover every shape the
+        # plan page can offer.
+        identity_client = get_oci_client(oci.identity.IdentityClient, region=region)
+        ads = identity_client.list_availability_domains(compartment_id=compartment_id).data
+
+        shapes = []
+        seen_shapes = set()
+        for ad in ads:
+            try:
+                for s in compute_client.list_shapes(
+                    compartment_id=compartment_id, availability_domain=ad.name
+                ).data:
+                    if s.shape not in seen_shapes:
+                        seen_shapes.add(s.shape)
+                        shapes.append(s)
+            except Exception:
+                logger.exception('Could not list shapes in %s', ad.name)
+
+        limits = {}
+        for s in shapes:
+            ocpu_opts = getattr(s, 'ocpu_options', None)
+            mem_opts = getattr(s, 'memory_options', None)
+            if not ocpu_opts or not mem_opts:
+                continue  # non-flexible shape
+            # Attribute names are inconsistent in the SDK (max_in_g_bs vs
+            # max_per_ocpu_in_gbs), so resolve defensively across versions.
+            def _attr(obj, *names):
+                for n in names:
+                    val = getattr(obj, n, None)
+                    if val is not None:
+                        return val
+                return None
+
+            limits[s.shape] = {
+                'max_ocpus': _attr(ocpu_opts, 'max'),
+                'min_ocpus': _attr(ocpu_opts, 'min'),
+                'max_memory_gb': _attr(mem_opts, 'max_in_g_bs', 'max_in_gbs'),
+                'min_memory_gb': _attr(mem_opts, 'min_in_g_bs', 'min_in_gbs'),
+                'min_per_ocpu_gb': _attr(mem_opts, 'min_per_ocpu_in_gbs', 'min_per_ocpu_in_g_bs'),
+                'max_per_ocpu_gb': _attr(mem_opts, 'max_per_ocpu_in_gbs', 'max_per_ocpu_in_g_bs'),
+            }
+
+        return jsonify({'shape_limits': limits})
+    except oci.exceptions.ServiceError as e:
+        return _oci_error_response(e, 'list shape limits')
+    except Exception as e:
+        logger.exception('Failed to list shape limits')
+        return jsonify({'error': 'An internal error occurred', 'retryable': False}), 500
+
+
+@app.route('/api/ocm/availability-domains', methods=['GET'])
+def get_availability_domains():
+    """Get availability domains, flagging which support a given shape.
+
+    Shape availability varies by AD (Ax shapes are not offered in every AD),
+    so the plan page needs to know which ADs can actually run the chosen shape.
+    """
+    try:
+        compartment_id = request.args.get('compartment_id')
+        shape = request.args.get('shape')
+        region = request.args.get('region', config.get('OCM_REGION', 'us-ashburn-1'))
+
+        if not compartment_id:
+            return jsonify({'error': 'compartment_id required'}), 400
+
+        identity_client = get_oci_client(oci.identity.IdentityClient, region=region)
+        ads = identity_client.list_availability_domains(compartment_id=compartment_id).data
+
+        default_ad = select_availability_domain(ads, region=region)
+
+        ad_list = []
+        for ad in ads:
+            entry = {'name': ad.name, 'supports_shape': True}
+            if shape:
+                try:
+                    compute_client = get_oci_client(oci.core.ComputeClient, region=region)
+                    shapes = compute_client.list_shapes(
+                        compartment_id=compartment_id,
+                        availability_domain=ad.name
+                    ).data
+                    entry['supports_shape'] = any(s.shape == shape for s in shapes)
+                except Exception:
+                    logger.exception('Could not check shape availability for %s', ad.name)
+            ad_list.append(entry)
+
+        return jsonify({'availability_domains': ad_list, 'default': default_ad})
+    except oci.exceptions.ServiceError as e:
+        return _oci_error_response(e, 'list availability domains')
+    except Exception as e:
+        logger.exception('Failed to list availability domains')
         return jsonify({'error': 'An internal error occurred', 'retryable': False}), 500
 
 

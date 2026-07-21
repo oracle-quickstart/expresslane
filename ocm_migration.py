@@ -573,7 +573,8 @@ def step2_create_plan(clients, project_ocid, vm_name, plan_compartment_id, targe
         raise
 
 
-def step3_add_asset(clients, project_ocid, vm_name, inventory_asset_id, bucket_name, compartment_id, replication_schedule_id=None, output_stream=None):
+def step3_add_asset(clients, project_ocid, vm_name, inventory_asset_id, bucket_name, compartment_id,
+                     replication_schedule_id=None, availability_domain_override=None, output_stream=None):
     """
     Step 3: Add Asset to Project
 
@@ -585,12 +586,18 @@ def step3_add_asset(clients, project_ocid, vm_name, inventory_asset_id, bucket_n
         bucket_name: Name of the replication bucket
         compartment_id: Target compartment OCID
         replication_schedule_id: Optional replication schedule OCID for warm migrations
+        availability_domain_override: If set, use this AD instead of resolving the
+            region default. Must match whatever AD the user's advanced config picks
+            for this VM — the migration asset's AD is fixed here and can never be
+            changed later. Step 3.5 (apply advanced config) updates the target asset
+            with the user's chosen AD, and OCM rejects that update outright if it
+            doesn't match this one, so the two must agree from the start.
         output_stream: Optional output stream for logging
 
     Returns:
         asset_ocid: OCID of the added migration asset
     """
-    from oci_clients import get_oci_client
+    from oci_clients import get_oci_client, select_availability_domain
 
     if output_stream:
         log_to_stream(output_stream, "=" * 80)
@@ -606,13 +613,19 @@ def step3_add_asset(clients, project_ocid, vm_name, inventory_asset_id, bucket_n
     try:
         migration_client = clients['migration']
 
-        # Get availability domain
-        identity_client = get_oci_client(oci.identity.IdentityClient)
-        ads = identity_client.list_availability_domains(compartment_id=compartment_id)
-        availability_domain = ads.data[0].name if ads.data else "KoMy:US-ASHBURN-AD-1"
-
-        if output_stream:
-            log_to_stream(output_stream, f"Using Availability Domain: {availability_domain}")
+        # Get availability domain. If the user picked one via advanced config,
+        # honor it here so it matches what Step 3.5 will try to apply to the
+        # target asset — otherwise fall back to the region default.
+        if availability_domain_override:
+            availability_domain = availability_domain_override
+            if output_stream:
+                log_to_stream(output_stream, f"Using Availability Domain (user-selected): {availability_domain}")
+        else:
+            identity_client = get_oci_client(oci.identity.IdentityClient)
+            ads = identity_client.list_availability_domains(compartment_id=compartment_id)
+            availability_domain = select_availability_domain(ads.data)
+            if output_stream:
+                log_to_stream(output_stream, f"Using Availability Domain: {availability_domain}")
 
         # Build migration asset details
         asset_kwargs = {
@@ -1515,3 +1528,126 @@ def terminate_test_instances(clients, test_apply_job_id, poll_interval=10, outpu
     return results
 
 
+
+def delete_migration_resources(project_ocid, rms_stack_ocid=None,
+                               delete_stack=True, output_stream=None):
+    """Tear down an OCM migration: plans, assets, project, and optionally its stack.
+
+    OCM enforces an ordering here — the migration cannot be deleted until its
+    assets have actually reached DELETED, not merely been asked to delete. The
+    delete calls are asynchronous, so this waits on state rather than firing
+    the three calls back to back (which fails with MethodNotAllowed).
+
+    Deleting the Resource Manager stack removes the stack and its Terraform
+    state only. It does NOT terminate the instances the stack created — that
+    requires an explicit destroy job.
+
+    Returns a dict summarising what was removed.
+    """
+    from oci_clients import get_oci_client
+
+    migration_client = get_oci_client(MigrationClient)
+    summary = {'plans': 0, 'assets': 0, 'migration': False, 'stack': False, 'errors': []}
+
+    def log(msg):
+        if output_stream:
+            log_to_stream(output_stream, msg)
+
+    # Resolve the migration's compartment. list_migration_plans requires a
+    # compartment_id (migration_id alone is rejected with "CompartmentId or
+    # migrationPlanId must be provided"). If the migration itself is already
+    # gone, there are no plans/assets left to remove — skip to the stack.
+    compartment_id = None
+    migration_gone = False
+    try:
+        compartment_id = migration_client.get_migration(
+            migration_id=project_ocid).data.compartment_id
+    except ServiceError as e:
+        if e.status == 404:
+            migration_gone = True
+            summary['migration'] = True
+        else:
+            summary['errors'].append(f"get migration: {e.message}")
+
+    # 1. Migration plans (filtered by compartment + migration)
+    if not migration_gone and compartment_id:
+        try:
+            plans = migration_client.list_migration_plans(
+                compartment_id=compartment_id, migration_id=project_ocid).data.items
+            for plan in plans:
+                if plan.lifecycle_state == 'DELETED':
+                    continue
+                migration_client.delete_migration_plan(migration_plan_id=plan.id)
+                summary['plans'] += 1
+                log(f"  Deleted migration plan: {plan.display_name}")
+        except ServiceError as e:
+            if e.status != 404:
+                summary['errors'].append(f"plans: {e.message}")
+
+    # 2. Migration assets
+    try:
+        assets = migration_client.list_migration_assets(migration_id=project_ocid).data.items
+        for asset in assets:
+            if asset.lifecycle_state == 'DELETED':
+                continue
+            migration_client.delete_migration_asset(migration_asset_id=asset.id)
+            summary['assets'] += 1
+            log(f"  Deleted migration asset: {asset.display_name}")
+    except ServiceError as e:
+        if e.status != 404:
+            summary['errors'].append(f"assets: {e.message}")
+
+    # 3. Wait for BOTH assets and plans to actually reach DELETED before removing
+    # the project. Deletes are asynchronous, and the project delete is rejected
+    # ("Not all associated migrationPlans have been deleted") until they clear.
+    if not migration_gone:
+        for _ in range(30):
+            try:
+                assets_left = [
+                    a for a in migration_client.list_migration_assets(
+                        migration_id=project_ocid).data.items
+                    if a.lifecycle_state != 'DELETED'
+                ]
+                plans_left = []
+                if compartment_id:
+                    plans_left = [
+                        p for p in migration_client.list_migration_plans(
+                            compartment_id=compartment_id, migration_id=project_ocid).data.items
+                        if p.lifecycle_state != 'DELETED'
+                    ]
+            except ServiceError:
+                break
+            if not assets_left and not plans_left:
+                break
+            time.sleep(6)
+
+    # 4. The migration project itself, retrying while dependents finish clearing
+    for attempt in range(8):
+        try:
+            migration_client.delete_migration(migration_id=project_ocid)
+            summary['migration'] = True
+            log(f"  Deleted migration project")
+            break
+        except ServiceError as e:
+            if e.status == 404:
+                summary['migration'] = True
+                break
+            if attempt == 7:
+                summary['errors'].append(f"migration: {e.message}")
+            else:
+                time.sleep(10)
+
+    # 5. Resource Manager stack (state only — instances are left running)
+    if delete_stack and rms_stack_ocid:
+        try:
+            rms_client = get_oci_client(ResourceManagerClient)
+            rms_client.delete_stack(stack_id=rms_stack_ocid)
+            summary['stack'] = True
+            log(f"  Deleted Resource Manager stack (instances left running)")
+        except ServiceError as e:
+            if e.status == 404:
+                summary['stack'] = True
+            else:
+                summary['errors'].append(f"stack: {e.message}")
+
+    return summary

@@ -315,10 +315,11 @@
         /* Column widths */
         .col-vm { min-width: 180px; }
         .col-processor { min-width: 140px; }
-        .col-shape { min-width: 280px; }
+        .col-shape { min-width: 190px; }
         .col-ocpu { min-width: 100px; }
         .col-memory { min-width: 100px; }
         .col-volume { min-width: 150px; }
+        .col-ad { min-width: 150px; }
         .col-fault { min-width: 140px; }
         .col-ip { min-width: 80px; text-align: center; }
     </style>
@@ -388,6 +389,7 @@
                                 <th class="col-ocpu">OCPUs</th>
                                 <th class="col-memory">Memory (GB)</th>
                                 <th class="col-volume">Volume Perf</th>
+                                <th class="col-ad">Availability Domain</th>
                                 <th class="col-fault">Fault Domain</th>
                                 <th class="col-ip">Public IP</th>
                             </tr>
@@ -432,6 +434,11 @@
                                         <option value="BALANCED">Balanced</option>
                                         <option value="HIGHER_PERFORMANCE">Higher Perf</option>
                                         <option value="LOWER_COST">Lower Cost</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    <select id="batch_availability_domain">
+                                        <option value="">-- Select --</option>
                                     </select>
                                 </td>
                                 <td>
@@ -571,18 +578,28 @@
             return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
         }
 
+        // Default shape used for batch selection and intelligent defaults
+        const DEFAULT_SHAPE = 'VM.Standard.E6.Flex';
+
         // Shape definitions
+        //
+        // Only VM.Standard.E*.Flex shapes are listed here. OCM's own supported-shapes
+        // list (docs.oracle.com/en-us/iaas/Content/cloud-migration/cloud-migration-
+        // requirements-specifications.htm) covers the Standard.E-Flex family plus the
+        // OLDER VM.DenseIO2.x generation — it does not list the newer VM.DenseIO.E4/E5/E6
+        // shapes, and lists no bare-metal (BM.*) shapes at all. Selecting one of those
+        // in the general "browse all shapes" picker doesn't mean OCM's recommendation
+        // engine or migration pipeline is validated against it — it can fail during
+        // image hydration or launch (local NVMe on DenseIO, iSCSI boot on bare metal).
         const shapes = {
             AMD: [
+                { value: 'VM.Standard.E6.Ax.Flex', label: 'VM.Standard.E6.Ax.Flex - AMD EPYC Turin Ax (Flexible)', isFlex: true },
                 { value: 'VM.Standard.E6.Flex', label: 'VM.Standard.E6.Flex - AMD EPYC Turin (Flexible)', isFlex: true },
-                { value: 'VM.Standard.E6.Flex', label: 'VM.Standard.E6.Flex - AMD EPYC Milan (Flexible)', isFlex: true },
-                { value: 'VM.Standard.E4.Flex', label: 'VM.Standard.E4.Flex - AMD EPYC Rome (Flexible)', isFlex: true },
-                { value: 'VM.DenseIO.E4.Flex', label: 'VM.DenseIO.E4.Flex - AMD EPYC Rome with NVMe (Flexible)', isFlex: true },
-                { value: 'VM.Optimized3.Flex', label: 'VM.Optimized3.Flex - AMD EPYC Milan High Freq (Flexible)', isFlex: true },
-                { value: 'BM.Standard.E5.192', label: 'BM.Standard.E5.192 - AMD EPYC Milan Bare Metal (192 OCPUs, 2304 GB)', isFlex: false },
-                { value: 'BM.Standard.E4.128', label: 'BM.Standard.E4.128 - AMD EPYC Rome Bare Metal (128 OCPUs, 2048 GB)', isFlex: false }
+                { value: 'VM.Standard.E5.Flex', label: 'VM.Standard.E5.Flex - AMD EPYC Genoa (Flexible)', isFlex: true },
+                { value: 'VM.Standard.E4.Flex', label: 'VM.Standard.E4.Flex - AMD EPYC Milan (Flexible)', isFlex: true }
             ],
             Intel: [
+                { value: 'VM.Optimized3.Flex', label: 'VM.Optimized3.Flex - Intel Xeon Ice Lake High Freq (Flexible)', isFlex: true },
                 { value: 'VM.Standard3.Flex', label: 'VM.Standard3.Flex - Intel Ice Lake (Flexible)', isFlex: true },
                 { value: 'VM.Standard2.1', label: 'VM.Standard2.1 - Intel Skylake (1 OCPU, 15 GB)', isFlex: false },
                 { value: 'VM.Standard2.2', label: 'VM.Standard2.2 - Intel Skylake (2 OCPUs, 30 GB)', isFlex: false },
@@ -593,8 +610,114 @@
             ]
         };
 
+        // Availability domains, loaded from OCI. Shape availability varies by AD
+        // (Ax shapes are not offered in every AD), so entries carry a support flag.
+        let availabilityDomains = [];
+        let defaultAvailabilityDomain = '';
+
+        function buildAdOptions(selected) {
+            if (!availabilityDomains.length) {
+                return '<option value="">-- Loading --</option>';
+            }
+            // Never leave a disabled AD selected — fall through to one that can
+            // actually run the chosen shape.
+            const supported = availabilityDomains.filter(ad => ad.supports_shape);
+            let chosen = selected || defaultAvailabilityDomain;
+            const chosenEntry = availabilityDomains.find(ad => ad.name === chosen);
+            if ((!chosenEntry || !chosenEntry.supports_shape) && supported.length) {
+                chosen = supported[0].name;
+            }
+
+            return availabilityDomains.map(ad => {
+                const short = escapeHtml(ad.name.split(':').pop() || ad.name);
+                const label = ad.supports_shape ? short : `${short} (shape N/A)`;
+                const isSel = ad.name === chosen ? ' selected' : '';
+                const dis = ad.supports_shape ? '' : ' disabled';
+                return `<option value="${escapeHtml(ad.name)}"${isSel}${dis}>${label}</option>`;
+            }).join('');
+        }
+
+        async function loadAvailabilityDomains(shape) {
+            const compartmentId = destinationConfig.compartment;
+            if (!compartmentId) {
+                console.warn('No destination compartment; skipping availability domain load');
+                return;
+            }
+
+            const params = new URLSearchParams({ compartment_id: compartmentId });
+            if (shape) params.set('shape', shape);
+
+            try {
+                const resp = await fetch(`/api/ocm/availability-domains?${params}`);
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                const data = await resp.json();
+                availabilityDomains = data.availability_domains || [];
+                defaultAvailabilityDomain = data.default || '';
+                refreshAdSelects();
+            } catch (e) {
+                console.error('Could not load availability domains:', e);
+            }
+        }
+
+        // Repopulate every AD select, preserving any explicit user choice.
+        function refreshAdSelects() {
+            const batch = document.getElementById('batch_availability_domain');
+            if (batch) {
+                const prev = batch.value;
+                batch.innerHTML = '<option value="">-- Select --</option>' + buildAdOptions(prev);
+                batch.value = prev || '';
+            }
+            selectedVMs.forEach(vm => {
+                const el = document.getElementById(`vm_availability_domain_${vm.inventory_asset_id}`);
+                if (el) {
+                    const prev = el.value;
+                    el.innerHTML = buildAdOptions(prev);
+                }
+            });
+        }
+
         const ocpuOptions = [1, 2, 4, 8, 16, 24, 32, 48, 64, 80, 96, 112, 128];
         const memoryPerOcpu = { min: 1, max: 64 };
+
+        // Per-shape OCPU/memory ceilings, loaded from OCI. Flex shapes differ a
+        // lot (VM.Optimized3.Flex caps at 18 OCPUs, VM.Standard.E5.Flex at 126),
+        // so offering one global range lets users build configs that cannot launch.
+        let shapeLimits = {};
+
+        // Conservative fallback when the API is unavailable: the widest range the
+        // page used before, so behaviour is never more restrictive than it was.
+        const FALLBACK_LIMITS = {
+            max_ocpus: Math.max(...ocpuOptions),
+            min_ocpus: 1,
+            max_memory_gb: Math.max(...ocpuOptions) * memoryPerOcpu.max,
+            min_per_ocpu_gb: memoryPerOcpu.min,
+            max_per_ocpu_gb: memoryPerOcpu.max
+        };
+
+        function limitsFor(shape) {
+            const l = shape && shapeLimits[shape];
+            if (!l) return FALLBACK_LIMITS;
+            return {
+                max_ocpus: l.max_ocpus ?? FALLBACK_LIMITS.max_ocpus,
+                min_ocpus: l.min_ocpus ?? 1,
+                max_memory_gb: l.max_memory_gb ?? FALLBACK_LIMITS.max_memory_gb,
+                min_per_ocpu_gb: l.min_per_ocpu_gb ?? memoryPerOcpu.min,
+                max_per_ocpu_gb: l.max_per_ocpu_gb ?? memoryPerOcpu.max
+            };
+        }
+
+        async function loadShapeLimits() {
+            const compartmentId = destinationConfig.compartment;
+            if (!compartmentId) return;
+            try {
+                const resp = await fetch(`/api/ocm/shape-limits?compartment_id=${encodeURIComponent(compartmentId)}`);
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                const data = await resp.json();
+                shapeLimits = data.shape_limits || {};
+            } catch (e) {
+                console.error('Could not load shape limits; using fallback ranges:', e);
+            }
+        }
 
         let selectedVMs = [];
         let destinationConfig = {};
@@ -607,7 +730,7 @@
             const family = parts[0] || '';
             const size = parts[1] || '';
 
-            // Default to AMD E5 Flex
+            // Default to AMD E6 Ax Flex
             let processorType = 'AMD';
             let shape = 'VM.Standard.E6.Flex';
             let ocpus = cpuCount || 2;
@@ -627,8 +750,8 @@
                 ocpus = cpuCount || 2;
                 memory = memoryGb || 16;  // Use actual memory
             } else if (family.startsWith('c5') || family.startsWith('c6') || family.startsWith('c7')) {
-                // Compute optimized -> AMD Optimized3 Flex (high frequency)
-                processorType = 'AMD';
+                // Compute optimized -> Intel Optimized3 Flex (high frequency)
+                processorType = 'Intel';
                 shape = 'VM.Optimized3.Flex';
                 ocpus = cpuCount || 2;
                 memory = memoryGb || 8;  // Use actual memory
@@ -646,12 +769,20 @@
                 memory = memoryGb || (ocpus * 8);
             }
 
-            // Ensure memory is within valid range for OCPUs (1GB to 64GB per OCPU in OCI)
-            const minMem = ocpus * memoryPerOcpu.min;
-            const maxMem = ocpus * memoryPerOcpu.max;
-            memory = Math.max(minMem, Math.min(maxMem, memory));
+            // Clamp to what the chosen shape actually supports
+            ({ ocpus, memory } = clampToShape(shape, ocpus, memory));
 
             return { processorType, shape, ocpus, memory };
+        }
+
+        // Clamp an OCPU/memory pair into the selected shape's supported range.
+        function clampToShape(shape, ocpus, memory) {
+            const limits = limitsFor(shape);
+            ocpus = Math.max(limits.min_ocpus, Math.min(limits.max_ocpus, ocpus));
+            const minMem = Math.max(ocpus * limits.min_per_ocpu_gb, limits.min_memory_gb || 1);
+            const maxMem = Math.min(ocpus * limits.max_per_ocpu_gb, limits.max_memory_gb);
+            memory = Math.max(minMem, Math.min(maxMem, memory));
+            return { ocpus, memory };
         }
 
         // VMware VM to OCI shape mapping
@@ -660,28 +791,26 @@
             // Otherwise fall back to defaults from settings
 
             if (cpuCount && memoryGb) {
-                // Use AMD E5 Flex with VM's actual specs
-                const ocpus = cpuCount;
-                const memory = memoryGb;
-
-                // Ensure memory is within valid range for OCPUs
-                const minMem = ocpus * memoryPerOcpu.min;
-                const maxMem = ocpus * memoryPerOcpu.max;
-                const adjustedMemory = Math.max(minMem, Math.min(maxMem, memory));
+                // Use the VM's actual specs, clamped to the shape's limits
+                const shape = 'VM.Standard.E6.Flex';
+                const fitted = clampToShape(shape, cpuCount, memoryGb);
 
                 return {
                     processorType: 'AMD',
-                    shape: 'VM.Standard.E6.Flex',
-                    ocpus: ocpus,
-                    memory: adjustedMemory
+                    shape: shape,
+                    ocpus: fitted.ocpus,
+                    memory: fitted.memory
                 };
             } else {
                 // Use defaults from settings
+                const shape = defaultShape || 'VM.Standard.E6.Flex';
+                const fitted = clampToShape(shape, parseInt(defaultOcpus) || 2, parseInt(defaultMemory) || 16);
+
                 return {
                     processorType: 'AMD',  // Assume default is AMD
-                    shape: defaultShape || 'VM.Standard.E6.Flex',
-                    ocpus: parseInt(defaultOcpus) || 2,
-                    memory: parseInt(defaultMemory) || 16
+                    shape: shape,
+                    ocpus: fitted.ocpus,
+                    memory: fitted.memory
                 };
             }
         }
@@ -813,10 +942,20 @@
                 shapes[processorType].forEach(shape => {
                     const option = document.createElement('option');
                     option.value = shape.value;
-                    option.textContent = shape.label;
+                    // Show just the shape name so the dropdown stays narrow — the
+                    // full description (processor gen, specs) is still available
+                    // as a tooltip on hover.
+                    option.textContent = shape.value;
+                    option.title = shape.label;
                     option.dataset.isFlex = shape.isFlex;
                     shapeSelect.appendChild(option);
                 });
+
+                // Preselect the default shape when this processor family offers it
+                if (shapes[processorType].some(s => s.value === DEFAULT_SHAPE)) {
+                    shapeSelect.value = DEFAULT_SHAPE;
+                    onBatchShapeChange();
+                }
             }
         }
 
@@ -825,13 +964,18 @@
             const selectedOption = shapeSelect.options[shapeSelect.selectedIndex];
             const isFlex = selectedOption && selectedOption.dataset.isFlex === 'true';
 
+            // Not every AD offers every shape — recheck against the new selection
+            if (shapeSelect.value) {
+                loadAvailabilityDomains(shapeSelect.value);
+            }
+
             const ocpuSelect = document.getElementById('batch_ocpus');
             const memorySelect = document.getElementById('batch_memory');
 
             if (isFlex) {
                 ocpuSelect.style.display = 'block';
                 memorySelect.style.display = 'block';
-                populateOcpuOptions('batch_ocpus');
+                populateOcpuOptions('batch_ocpus', shapeSelect.value);
                 updateBatchMemory();
             } else {
                 ocpuSelect.style.display = 'none';
@@ -840,38 +984,54 @@
         }
 
         function updateBatchMemory() {
-            updateMemoryOptions('batch_ocpus', 'batch_memory');
+            const shape = document.getElementById('batch_shape').value;
+            updateMemoryOptions('batch_ocpus', 'batch_memory', shape);
         }
 
-        function populateOcpuOptions(selectId) {
+        function populateOcpuOptions(selectId, shape) {
             const select = document.getElementById(selectId);
             const currentValue = select.value;
+            const limits = limitsFor(shape);
+
+            // Only offer counts the shape can actually run, plus its exact
+            // maximum so the top of the range is always reachable.
+            const allowed = ocpuOptions.filter(o => o >= limits.min_ocpus && o <= limits.max_ocpus);
+            if (!allowed.includes(limits.max_ocpus)) {
+                allowed.push(limits.max_ocpus);
+            }
+            allowed.sort((a, b) => a - b);
 
             select.innerHTML = '';
-            ocpuOptions.forEach(ocpu => {
+            allowed.forEach(ocpu => {
                 const option = document.createElement('option');
                 option.value = ocpu;
                 option.textContent = ocpu;
                 select.appendChild(option);
             });
 
-            if (currentValue && ocpuOptions.includes(parseInt(currentValue))) {
+            if (currentValue && allowed.includes(parseInt(currentValue))) {
                 select.value = currentValue;
             } else {
-                select.value = 2;
+                // Clamp rather than silently resetting a now-invalid larger value
+                const prev = parseInt(currentValue);
+                select.value = (prev && prev > limits.max_ocpus)
+                    ? limits.max_ocpus
+                    : (allowed.includes(2) ? 2 : allowed[0]);
             }
         }
 
-        function updateMemoryOptions(ocpuSelectId, memorySelectId) {
+        function updateMemoryOptions(ocpuSelectId, memorySelectId, shape) {
             const ocpuSelect = document.getElementById(ocpuSelectId);
             const memorySelect = document.getElementById(memorySelectId);
             const selectedOcpus = parseInt(ocpuSelect.value) || 2;
             const currentValue = memorySelect.value;
+            const limits = limitsFor(shape);
 
             memorySelect.innerHTML = '';
 
-            const minMemory = selectedOcpus * memoryPerOcpu.min;
-            const maxMemory = selectedOcpus * memoryPerOcpu.max;
+            const minMemory = Math.max(selectedOcpus * limits.min_per_ocpu_gb, limits.min_memory_gb || 1);
+            // Per-OCPU allowance and the shape's absolute ceiling both apply
+            const maxMemory = Math.min(selectedOcpus * limits.max_per_ocpu_gb, limits.max_memory_gb);
 
             const memoryOptions = [];
             for (let mem = minMemory; mem <= maxMemory; mem *= 2) {
@@ -950,6 +1110,11 @@
                         </select>
                     </td>
                     <td>
+                        <select id="vm_availability_domain_${vmId}">
+                            ${buildAdOptions()}
+                        </select>
+                    </td>
+                    <td>
                         <select id="vm_fault_domain_${vmId}">
                             <option value="AUTO" selected>Auto</option>
                             <option value="FAULT-DOMAIN-1">FD-1</option>
@@ -966,6 +1131,14 @@
 
                 // Apply intelligent defaults based on source VM specs
                 applyIntelligentDefaults(vmId, vm);
+            });
+
+            // Load ADs once rows exist, checked against the default shape
+            loadAvailabilityDomains(DEFAULT_SHAPE);
+            // Re-apply defaults once real limits arrive, in case anything was
+            // clamped against the fallback range
+            loadShapeLimits().then(() => {
+                selectedVMs.forEach(vm => onVMShapeChange(vm.inventory_asset_id));
             });
         }
 
@@ -1053,7 +1226,11 @@
             shapes[processorType].forEach(shape => {
                 const option = document.createElement('option');
                 option.value = shape.value;
-                option.textContent = shape.label;
+                // Show just the shape name so the dropdown stays narrow — the
+                // full description (processor gen, specs) is still available
+                // as a tooltip on hover.
+                option.textContent = shape.value;
+                option.title = shape.label;
                 option.dataset.isFlex = shape.isFlex;
                 shapeSelect.appendChild(option);
             });
@@ -1070,7 +1247,7 @@
             if (isFlex) {
                 ocpuSelect.style.display = 'block';
                 memorySelect.style.display = 'block';
-                populateOcpuOptions(`vm_ocpus_${vmId}`);
+                populateOcpuOptions(`vm_ocpus_${vmId}`, shapeSelect.value);
                 updateVMMemory(vmId);
             } else {
                 ocpuSelect.style.display = 'none';
@@ -1079,7 +1256,8 @@
         }
 
         function updateVMMemory(vmId) {
-            updateMemoryOptions(`vm_ocpus_${vmId}`, `vm_memory_${vmId}`);
+            const shape = document.getElementById(`vm_shape_${vmId}`).value;
+            updateMemoryOptions(`vm_ocpus_${vmId}`, `vm_memory_${vmId}`, shape);
         }
 
         function applyBatchToAll() {
@@ -1089,6 +1267,7 @@
             const batchOcpus = document.getElementById('batch_ocpus').value;
             const batchMemory = document.getElementById('batch_memory').value;
             const batchVolumePerf = document.getElementById('batch_volume_perf').value;
+            const batchAvailabilityDomain = document.getElementById('batch_availability_domain').value;
             const batchFaultDomain = document.getElementById('batch_fault_domain').value;
             const batchPublicIp = document.getElementById('batch_public_ip');
 
@@ -1099,12 +1278,14 @@
             const hasProcessor = batchProcessorElem !== null;
             const hasShape = batchShape !== '';
             const hasVolumePerf = batchVolumePerf !== '';
+            const hasAvailabilityDomain = batchAvailabilityDomain !== '';
             const hasFaultDomain = batchFaultDomain !== '';
 
             // Build list of fields that will be applied
             if (hasProcessor) fieldsToApply.push('Processor Type');
             if (hasShape) fieldsToApply.push('Shape');
             if (hasVolumePerf) fieldsToApply.push('Volume Performance');
+            if (hasAvailabilityDomain) fieldsToApply.push('Availability Domain');
             if (hasFaultDomain) fieldsToApply.push('Fault Domain');
             if (batchPublicIp.checked) fieldsToApply.push('Public IP');
 
@@ -1155,6 +1336,11 @@
                 // Only apply volume performance if selected
                 if (hasVolumePerf) {
                     document.getElementById(`vm_volume_perf_${vmId}`).value = batchVolumePerf;
+                }
+
+                // Only apply availability domain if selected
+                if (hasAvailabilityDomain) {
+                    document.getElementById(`vm_availability_domain_${vmId}`).value = batchAvailabilityDomain;
                 }
 
                 // Only apply fault domain if selected
@@ -1252,8 +1438,10 @@
                     totalOcpus  += ocpus;
                     totalMemory += memory;
                 } else {
-                    // Parse fixed shape label e.g. "… (4 OCPUs, 60 GB)" to contribute to totals.
-                    const label = selectedOption.textContent || '';
+                    // Parse fixed shape spec e.g. "… (4 OCPUs, 60 GB)" to contribute to totals.
+                    // Lives in `title` (the full description), not the visible text — the
+                    // option only shows the bare shape name now.
+                    const label = selectedOption.title || '';
                     const m = label.match(/\((\d+)\s*OCPUs?,\s*(\d+)\s*GB\)/);
                     if (m) {
                         totalOcpus  += parseInt(m[1]);
@@ -1410,6 +1598,7 @@
                     processor_type: document.querySelector(`input[name="vm_processor_${vmId}"]:checked`).value,
                     shape: shape,
                     volume_performance: document.getElementById(`vm_volume_perf_${vmId}`).value,
+                    availability_domain: document.getElementById(`vm_availability_domain_${vmId}`).value,
                     fault_domain: document.getElementById(`vm_fault_domain_${vmId}`).value,
                     assign_public_ip: document.getElementById(`vm_public_ip_${vmId}`).checked
                 };

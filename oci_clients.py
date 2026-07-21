@@ -137,6 +137,40 @@ def get_auth_mode():
     return _auth_mode
 
 
+# Preferred availability domain per region. OCI returns ADs in an arbitrary
+# order, so relying on the first one is not deterministic.
+PREFERRED_AD_BY_REGION = {
+    'us-ashburn-1': 'AD-1',
+}
+
+DEFAULT_AVAILABILITY_DOMAIN = 'KoMy:US-ASHBURN-AD-1'
+
+
+def select_availability_domain(ads, region=None):
+    """Choose the availability domain to deploy into.
+
+    Prefers the region's configured AD (AD-2 in us-ashburn-1) and falls back to
+    the first AD returned when that region has no preference or the preferred
+    AD is unavailable in this tenancy.
+    """
+    names = [ad.name for ad in (ads or []) if getattr(ad, 'name', None)]
+    if not names:
+        return DEFAULT_AVAILABILITY_DOMAIN
+
+    resolved_region = region or config.get('OCM_REGION', 'us-ashburn-1')
+    preferred = PREFERRED_AD_BY_REGION.get(resolved_region)
+    if preferred:
+        for name in names:
+            if name.endswith(preferred):
+                return name
+        logger.warning(
+            "Preferred availability domain %s not found in %s; using %s",
+            preferred, resolved_region, names[0]
+        )
+
+    return names[0]
+
+
 def is_oci_configured():
     """Return True if any OCI auth method is available."""
     _init_auth()
